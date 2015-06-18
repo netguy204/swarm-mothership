@@ -1,5 +1,13 @@
 #include "protocol.h"
 
+#ifndef ARDUINO
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <fcntl.h>
+#include <stdio.h>
+#include <unistd.h>
+
+#endif
 
 uint8_t messageChecksum(Message* msg) {
   return (msg->type + msg->payload_low + msg->payload_high);
@@ -10,9 +18,9 @@ void sendMessage(Stream& stream, MessageType type, uint16_t payload) {
   #define WRITEBYTES(x, y, n) (x.write(y, n))
 #else
 void sendMessage(int stream, MessageType type, uint16_t payload) {
-  #define WRITEBYTES(x, y, n) \
-  do {                    \      \
-    write(stream, y, n); \
+  #define WRITEBYTES(x, y, n)    \
+  do {                           \
+    write(stream, y, n);         \
   } while(0)
 #endif
   Message msg;
@@ -35,15 +43,13 @@ bool hasMessage(Message* message, int stream) {
     y = tempRead; \
   } while(0)
 #endif
-    
-  if(!stream.available()) return false;
-  
+
   char* buf = (char*)message;
   for(uint8_t ii = 0; ii < sizeof(Message); ++ii) {
     READBYTE(stream, buf[ii]);
   }
   if(messageChecksum(message) == message->checksum) return true;
-  
+
   // effectively block until there's no sign of synchronization remaining in the stream
   while(true) {
     // check to see if this contains a sync request
@@ -53,14 +59,14 @@ bool hasMessage(Message* message, int stream) {
         sync = ii;
       }
     }
-    
+
     if(sync == -1) return false; // unrecoverable error. hopefully the sender syncs in the future
-    
+
     // slide up to the sync
     for(uint8_t ii = sync; ii < sizeof(Message); ++ii) {
       buf[ii - sync] = buf[ii];
     }
-    
+
     // begin rotating the buffer until it begins with a non-sync
     while(buf[0] == COMMAND_SYNC_STREAM) {
       for(uint8_t ii = 1; ii < sizeof(Message); ++ii) {
@@ -68,7 +74,7 @@ bool hasMessage(Message* message, int stream) {
       }
       READBYTE(stream, buf[sizeof(Message) - 1]);
     }
-    
+
     // do we have a valid message?
     if(messageChecksum(message) == message->checksum) return true;
   }
