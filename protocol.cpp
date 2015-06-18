@@ -5,21 +5,42 @@ uint8_t messageChecksum(Message* msg) {
   return (msg->type + msg->payload_low + msg->payload_high);
 }
 
+#ifdef ARDUINO
 void sendMessage(Stream& stream, MessageType type, uint16_t payload) {
+  #define WRITEBYTES(x, y, n) (x.write(y, n))
+#else
+void sendMessage(int stream, MessageType type, uint16_t payload) {
+  #define WRITEBYTES(x, y, n) \
+  do {                    \      \
+    write(stream, y, n); \
+  } while(0)
+#endif
   Message msg;
   msg.type = type;
   msg.payload_low = payload & 0xFF;
   msg.payload_high = (payload >> 8) & 0xFF;
   msg.checksum = messageChecksum(&msg);
-  stream.write((char*)&msg, sizeof(msg));
+  WRITEBYTES(stream, (char*)&msg, sizeof(msg));
 }
 
+#ifdef ARDUINO
 bool hasMessage(Message* message, Stream& stream) {
+  #define READBYTE(x, y) (y = x.read())
+#else
+uint8_t tempRead;
+bool hasMessage(Message* message, int stream) {
+  #define READBYTE(x, y) \
+  do {                   \
+    read(stream, &tempRead, 1); \
+    y = tempRead; \
+  } while(0)
+#endif
+    
   if(!stream.available()) return false;
   
   char* buf = (char*)message;
   for(uint8_t ii = 0; ii < sizeof(Message); ++ii) {
-    buf[ii] = stream.read();
+    READBYTE(stream, buf[ii]);
   }
   if(messageChecksum(message) == message->checksum) return true;
   
@@ -45,7 +66,7 @@ bool hasMessage(Message* message, Stream& stream) {
       for(uint8_t ii = 1; ii < sizeof(Message); ++ii) {
         buf[ii - 1] = buf[ii];
       }
-      buf[sizeof(Message) - 1] = stream.read();
+      READBYTE(stream, buf[sizeof(Message) - 1]);
     }
     
     // do we have a valid message?

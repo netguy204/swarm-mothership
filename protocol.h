@@ -2,7 +2,7 @@
 #define PROTOCOL_H
 
 #include <stdint.h>
-#include <Arduino.h>
+
 enum MessageType {
   COMMAND_SET_SPEED,
   REPORT_CURRENT_SPEED,
@@ -17,9 +17,13 @@ struct Message {
   uint8_t checksum;
 };
 
+#ifdef ARDUINO
+#include <Arduino.h>
 void sendMessage(Stream& stream, MessageType type, uint16_t payload);
-
 bool hasMessage(Message* message, Stream& stream);
-
+#else
+void sendMessage(int stream, MessageType type, uint16_t payload);
+bool hasMessage(Message* message, int stream);
+#endif
 #endif
 
