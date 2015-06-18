@@ -1,4 +1,6 @@
 #include <SoftwareSerial.h>
+#include "protocol.h"
+
 #define rxPin 3    // pin 3 connects to SMC TX
 #define txPin 4    // pin 4 connects to SMC RX
 #define resetPin 5 // pin 5 connects to SMC nRST
@@ -106,6 +108,8 @@ void setup()
   
   pinMode(SPEEDPIN, INPUT);
   digitalWrite(SPEEDPIN, HIGH);
+  
+  sendMessage(piSerial, COMMAND_SYNC_STREAM, COMMAND_SYNC_STREAM);
 }
  
 void loop()
@@ -122,6 +126,7 @@ void loop()
   setMotorSpeed(speed);  // full-speed forward
   */
   
+  /*
   if(piSerial.available()) {
     int v = piSerial.read();
     piSerial.write(v);
@@ -132,6 +137,18 @@ void loop()
     int v = Serial.read();
     piSerial.write(v);
     Serial.write(v);
+  }
+  */
+  
+  Message msg;
+  if(hasMessage(&msg, piSerial)) {
+    Serial.print("got message ");
+    Serial.print(msg.type);
+    Serial.print(": low byte = ");
+    Serial.print(msg.payload_low);
+    Serial.print(" high byte = ");
+    Serial.println(msg.payload_high);
+    sendMessage(piSerial, REPORT_CURRENT_SPEED, 0);
   }
   
   // signed variables must be cast to ints:
