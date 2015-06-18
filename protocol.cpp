@@ -33,13 +33,17 @@ void sendMessage(int stream, MessageType type, uint16_t payload) {
 
 #ifdef ARDUINO
 bool hasMessage(Message* message, Stream& stream) {
-  #define READBYTE(x, y) (y = x.read())
+  #define READBYTE(x, y) do {     \
+    int v;                        \
+    while((v = x.read()) == -1);  \
+    y = v;                        \
+  } while(0)
 #else
 uint8_t tempRead;
 bool hasMessage(Message* message, int stream) {
   #define READBYTE(x, y) \
   do {                   \
-    read(stream, &tempRead, 1); \
+    while(read(stream, &tempRead, 1) != 1); \
     y = tempRead; \
   } while(0)
 #endif
