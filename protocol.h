@@ -4,26 +4,31 @@
 #include <stdint.h>
 
 enum MessageType {
+  COMMAND_NOOP,
   COMMAND_SET_SPEED,
+  COMMAND_SET_SERVO,
+  
+  REQUEST_TEMPERATURE,
+  
   REPORT_CURRENT_SPEED,
-  COMMAND_SYNC_STREAM,
-  COMMAND_MAX
+  REPORT_COMMAND_COMPLETE,
+  REPORT_USER_OVERRIDE,
+  REPORT_MOTOR_ERROR,
+  REPORT_NOOP,
+  MESSAGE_MAX
 };
 
 struct Message {
   uint8_t type;
   uint8_t payload_low;
   uint8_t payload_high;
+  uint8_t id;
   uint8_t checksum;
 };
 
-#ifdef ARDUINO
-#include <Arduino.h>
-void sendMessage(Stream& stream, MessageType type, uint16_t payload);
-bool hasMessage(Message* message, Stream& stream);
-#else
-void sendMessage(int stream, MessageType type, uint16_t payload);
-bool hasMessage(Message* message, int stream);
-#endif
+uint8_t messageChecksum(Message* msg);
+void messageInit(Message* msg, MessageType type, uint16_t value);
+uint16_t messagePayload(Message* msg);
+
 #endif
 
