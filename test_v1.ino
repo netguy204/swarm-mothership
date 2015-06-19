@@ -4,11 +4,6 @@
 #include "protocol.h"
 #include "SMC.h"
 
-#define rxPin 2    // pin 3 connects to SMC TX
-#define txPin 3    // pin 4 connects to SMC RX
-#define resetPin 6 // pin 5 connects to SMC nRST
-#define errPin 7   // pin 6 connects to SMC ERR
-
 // some motor limit IDs
 #define FORWARD_ACCELERATION 5
 #define REVERSE_ACCELERATION 9
@@ -23,7 +18,7 @@ struct ProtocolFSM {
   Message status;
   uint8_t message_bytes;
   uint8_t dropped_bytes;
-  uint8_t state;
+  volatile uint8_t state;
 };
 
 enum {
@@ -39,7 +34,7 @@ ProtocolFSM pfsm;
 struct MothershipFSM {
   Message current;
   uint32_t start;
-  uint8_t state;
+  volatile uint8_t state;
 };
 
 enum {
@@ -56,12 +51,17 @@ void protocolInit() {
   pfsm.message_bytes = 0;
   pfsm.dropped_bytes = 0;
   pfsm.state = P_READY;
+  messageInit(&pfsm.status, REPORT_NOOP, 0);
 }
 
 void protocolReceive(int byteCount) {
+  Serial.print("receive ");
+  Serial.println(byteCount);
+  
   uint8_t* rbuf = (uint8_t*)(&pfsm.message);
   while(Wire.available()) {
     uint8_t next = Wire.read();
+    
     if(pfsm.state == P_MESSAGE_WAITING) {
       // we can't handle a new message. drop it on the floor
       pfsm.dropped_bytes++;
@@ -85,15 +85,26 @@ void protocolReceive(int byteCount) {
         pfsm.state = P_READY;
       }
     }
-  }
+    
+    Serial.print("byte = ");
+    Serial.print(next);
+    Serial.print(", state = ");
+    Serial.print(pfsm.state);
+    Serial.print(", count = ");
+    Serial.print(pfsm.message_bytes);
+    Serial.print(", dropped = ");
+    Serial.println(pfsm.dropped_bytes);
+  }  
 }
 
 void protocolSend() {
-  Wire.write((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
+  int sent = Wire.write((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
+  Serial.print("sent = ");
+  Serial.println(sent);
 }
 
 bool protocolHasMessage(Message* msg) {
-  if(!pfsm.state == P_MESSAGE_WAITING) return false;
+  if(pfsm.state != P_MESSAGE_WAITING) return false;
   
   *msg = pfsm.message;
   if(pfsm.dropped_bytes % sizeof(pfsm.message) == 0) {
@@ -134,7 +145,7 @@ void setup()
   mothershipInit();
   
   Serial.begin(19200);    // for debugging (optional)
-  SMC.begin(rxPin, txPin, errPin, resetPin);
+  SMC.begin();
   Wire.begin(SLAVE_ADDRESS);
   Wire.onReceive(protocolReceive);
   Wire.onRequest(protocolSend);
@@ -152,11 +163,11 @@ void setup()
   digitalWrite(SPEEDPIN, HIGH);
 }
 
-void loop()
-{
-  Serial.print("state = ");
-  Serial.println(mfsm.state);
+int8_t mInitState = -1;
+int8_t pInitState = -1;
   
+void loop()
+{  
   int speed = 500;
   bool userOverride = false;
   
@@ -194,6 +205,7 @@ void loop()
       SMC.setMotorSpeed(0);
     } else if(mfsm.state == M_IDLE) {
       if(protocolHasMessage(&mfsm.current)) {
+        Serial.println("got message");
         if(mfsm.current.type == COMMAND_SET_SPEED) {
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
@@ -231,6 +243,14 @@ void loop()
   // if an error is stopping the motor, write the error status variable
   // and try to re-enable the motor
   
-  
-  
+  if(mInitState != mfsm.state) {
+    Serial.print("mothership state = ");
+    Serial.println(mfsm.state);
+  }
+   if(pInitState != pfsm.state) {
+    Serial.print("protocol state = ");
+    Serial.println(mfsm.state);
+  }
+  mInitState = mfsm.state;
+  pInitState = pfsm.state;
 }

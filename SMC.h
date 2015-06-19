@@ -10,20 +10,22 @@
 #define INPUT_VOLTAGE 23
 #define TEMPERATURE 24
 
+#define rxPin 2    // pin 3 connects to SMC TX
+#define txPin 3    // pin 4 connects to SMC RX
+#define resetPin 6 // pin 5 connects to SMC nRST
+#define errPin 7   // pin 6 connects to SMC ERR
 
 class SMCClass {
 private:
-  SoftwareSerial* smcSerial;
-  char errPin, resetPin;
-  
+  SoftwareSerial smcSerial;
+
   int readByte();
   
   
 public:
   SMCClass();
-  ~SMCClass();
   
-  void begin(char rxPin, char txPin, char errPin, char resetPin);
+  void begin();
   void reset();
   void exitSafeStart();
   
