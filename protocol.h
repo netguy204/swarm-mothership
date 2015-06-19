@@ -22,8 +22,6 @@ struct Message {
   uint8_t type;
   uint8_t payload_low;
   uint8_t payload_high;
-  uint8_t id;
-  uint8_t checksum;
 };
 
 uint8_t messageChecksum(Message* msg);

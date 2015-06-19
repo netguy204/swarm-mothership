@@ -9,8 +9,6 @@ void messageInit(Message* msg, MessageType type, uint16_t value) {
   msg->type = type;
   msg->payload_low = value & 0xFF;
   msg->payload_high = (value >> 8) & 0xFF;
-  msg->id = 0;
-  msg->checksum = messageChecksum(msg);
 }
 
 uint16_t messagePayload(Message* msg) {
