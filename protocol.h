@@ -24,9 +24,9 @@ struct Message {
   uint8_t payload_high;
 };
 
-uint8_t messageChecksum(Message* msg);
-void messageInit(Message* msg, MessageType type, uint16_t value);
-uint16_t messagePayload(Message* msg);
+uint8_t messageChecksum(volatile Message* msg);
+void messageInit(volatile Message* msg, MessageType type, uint16_t value);
+uint16_t messagePayload(volatile Message* msg);
 
 #endif
 
