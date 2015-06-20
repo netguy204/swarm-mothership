@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 enum MessageType {
-  COMMAND_NOOP = 0xA0f,
+  COMMAND_NOOP = 0x80,
   COMMAND_SET_SPEED,
   COMMAND_SET_SERVO,
   
