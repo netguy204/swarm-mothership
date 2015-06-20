@@ -46,6 +46,7 @@ struct MothershipFSM {
 enum {
   M_IDLE,
   M_EXECUTION,
+  M_EXECUTION_COMPLETE,
   M_OVERRIDE,
   M_ERROR
 };
@@ -63,9 +64,10 @@ void protocolInit() {
 
 // interrupt context
 void protocolReceive(int byteCount) {
+  /*
   Serial.print("receive ");
   Serial.println(byteCount);
-  
+  */
   volatile uint8_t* rbuf = (uint8_t*)(&pfsm.message);
   while(Wire.available()) {
     uint8_t next = Wire.read();
@@ -114,8 +116,10 @@ void protocolSend() {
   }
   
   int sent = Wire.write((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
+  /*
   Serial.print("sent = ");
   Serial.println(sent);
+  */
 }
 
 bool protocolHasMessage(volatile Message* msg) {
@@ -163,7 +167,7 @@ void setup()
   protocolInit();
   mothershipInit();
   
-  Serial.begin(19200);    // for debugging (optional)
+  Serial.begin(115200);    // for debugging (optional)
   SMC.begin();
   Wire.begin(SLAVE_ADDRESS);
   Wire.onReceive(protocolReceive);
@@ -222,15 +226,16 @@ void loop()
       protocolSetStatus(REPORT_NOOP, 0);
       mfsm.state = M_IDLE;
       SMC.setMotorSpeed(0);
-    } else if(mfsm.state == M_IDLE) {
+    } else if(mfsm.state == M_IDLE || mfsm.state == M_EXECUTION_COMPLETE) {
       if(protocolHasMessage(&mfsm.current)) {
-        Serial.print("got message = ");
-        Serial.println(mfsm.current.type);
-        
         if(mfsm.current.type == COMMAND_SET_SPEED) {
+          /*
           Serial.print("COMMAND_SET_SPEED = ");
           Serial.println((int16_t)messagePayload(&mfsm.current));
-          
+          */
+          if(mfsm.state == M_EXECUTION_COMPLETE) {
+            Serial.println("chained!");
+          }
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
           SMC.setMotorSpeed((int16_t)messagePayload(&mfsm.current));
@@ -238,12 +243,15 @@ void loop()
           Serial.print("ignoring message ");
           Serial.println(mfsm.current.type);
         }
+      } else if(mfsm.state == M_EXECUTION_COMPLETE) {
+        // close the command chaining windoow
+        SMC.setMotorSpeed(0);
+        mfsm.state = M_IDLE;
       }
     } else if(mfsm.state == M_EXECUTION) {
       uint32_t now = millis();
-      if(now < mfsm.start || (now - mfsm.start >= 1000)) {
-        SMC.setMotorSpeed(0);
-        mfsm.state = M_IDLE;
+      if(now < mfsm.start || (now - mfsm.start >= 30)) {
+        mfsm.state = M_EXECUTION_COMPLETE; // open command chaining window
         protocolSetStatus(&mfsm.current);
       }
     } else if(mfsm.state == M_ERROR) {
@@ -268,6 +276,7 @@ void loop()
   // if an error is stopping the motor, write the error status variable
   // and try to re-enable the motor
   
+  /*
   if(mInitState != mfsm.state) {
     Serial.print("mothership state = ");
     Serial.println(mfsm.state);
@@ -280,4 +289,5 @@ void loop()
   
   mInitState = mfsm.state;
   pInitState = pfsm.state;
+  */
 }
