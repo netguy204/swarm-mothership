@@ -93,14 +93,14 @@ int main(int argc, char** argv) {
     double value = 0;
     if(ev.type == JS_EVENT_AXIS && ev.number == 1) {
       printf("ev.value = %d\n", ev.value);
-      value = ((double)ev.value) * (2000.0 / 32767.0);
+      value = ((double)ev.value) * (1000.0 / 32767.0);
     }
 
     int16_t ival = (int16_t)value;
 
     Message _msg;
     uint8_t* msg = (uint8_t*)&_msg;
-    messageInit(&_msg, COMMAND_SET_SPEED, ival, id++);
+    messageSignedInit(&_msg, COMMAND_SET_SPEED, ival, id++);
 
     int nwrote = 0;
     while(nwrote != sizeof(Message)) {
