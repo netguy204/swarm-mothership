@@ -59,7 +59,7 @@ void protocolInit() {
   pfsm.dropped_bytes = 0;
   pfsm.state = P_READY;
   pfsm.message_handled = false;
-  messageInit(&pfsm.status, REPORT_NOOP, 0);
+  messageInit(&pfsm.status, REPORT_NOOP, 0, 0);
 }
 
 // interrupt context
@@ -138,10 +138,10 @@ void protocolSetStatus(volatile Message* msg) {
   pfsm.next_status_available = true;
 }
 
-void protocolSetStatus(MessageType type, uint16_t payload) {
+void protocolSetStatus(MessageType type, uint16_t payload, uint8_t id) {
   if(pfsm.next_status_available) return;
   
-  messageInit(&pfsm.next_status, type, payload);
+  messageInit(&pfsm.next_status, type, payload, id);
   pfsm.next_status_available = true;
 }
 
@@ -215,15 +215,15 @@ void loop()
       // this error is recoverable
       smcInitialize();
     }
-    protocolSetStatus(REPORT_MOTOR_ERROR, error);
+    protocolSetStatus(REPORT_MOTOR_ERROR, error, 0);
   } else if(userOverride) {
-    protocolSetStatus(REPORT_USER_OVERRIDE, speed);
+    protocolSetStatus(REPORT_USER_OVERRIDE, speed, 0);
     mfsm.state = M_OVERRIDE;
     SMC.setMotorSpeed(speed);
   } else {
     if(mfsm.state == M_OVERRIDE) {
       // user override complete
-      protocolSetStatus(REPORT_NOOP, 0);
+      protocolSetStatus(REPORT_NOOP, 0, 0);
       mfsm.state = M_IDLE;
       SMC.setMotorSpeed(0);
     } else if(mfsm.state == M_IDLE || mfsm.state == M_EXECUTION_COMPLETE) {
@@ -232,13 +232,15 @@ void loop()
           /*
           Serial.print("COMMAND_SET_SPEED = ");
           Serial.println((int16_t)messagePayload(&mfsm.current));
-          */
+          
           if(mfsm.state == M_EXECUTION_COMPLETE) {
             Serial.println("chained!");
           }
+          */
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
           SMC.setMotorSpeed((int16_t)messagePayload(&mfsm.current));
+          protocolSetStatus(&mfsm.current);
         } else {
           Serial.print("ignoring message ");
           Serial.println(mfsm.current.type);
@@ -252,14 +254,13 @@ void loop()
       uint32_t now = millis();
       if(now < mfsm.start || (now - mfsm.start >= 30)) {
         mfsm.state = M_EXECUTION_COMPLETE; // open command chaining window
-        protocolSetStatus(&mfsm.current);
       }
     } else if(mfsm.state == M_ERROR) {
       uint32_t now = millis();
       if(now < mfsm.start || (now - mfsm.start >= 100)) {
         SMC.setMotorSpeed(0);
         mfsm.state = M_IDLE;
-        protocolSetStatus(REPORT_NOOP, 0);
+        protocolSetStatus(REPORT_NOOP, 0, 0);
       }
       SMC.exitSafeStart();
       SMC.reset();
