@@ -4,7 +4,7 @@
 #include <stdint.h>
 
 enum MessageType {
-  COMMAND_NOOP,
+  COMMAND_NOOP = 0xA0f,
   COMMAND_SET_SPEED,
   COMMAND_SET_SERVO,
   
@@ -26,7 +26,7 @@ struct Message {
 };
 
 uint8_t messageChecksum(volatile Message* msg);
-void messageInit(volatile Message* msg, MessageType type, uint16_t value);
+void messageInit(volatile Message* msg, MessageType type, uint16_t value, uint8_t id);
 uint16_t messagePayload(volatile Message* msg);
 
 #endif
