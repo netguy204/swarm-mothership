@@ -16,9 +16,15 @@
 struct ProtocolFSM {
   Message message;
   Message status;
+  Message next_status;
+  
   uint8_t message_bytes;
   uint8_t dropped_bytes;
-  volatile uint8_t state;
+  uint8_t state;
+  
+  // flags
+  uint8_t message_handled : 1;
+  uint8_t next_status_available : 1;
 };
 
 enum {
@@ -28,13 +34,13 @@ enum {
   P_SYNCHRONIZING
 };
 
-ProtocolFSM pfsm;
+volatile ProtocolFSM pfsm;
 
  
 struct MothershipFSM {
   Message current;
   uint32_t start;
-  volatile uint8_t state;
+  uint8_t state;
 };
 
 enum {
@@ -45,22 +51,34 @@ enum {
 };
 
 
-MothershipFSM mfsm;
+volatile MothershipFSM mfsm;
 
 void protocolInit() {
   pfsm.message_bytes = 0;
   pfsm.dropped_bytes = 0;
   pfsm.state = P_READY;
+  pfsm.message_handled = false;
   messageInit(&pfsm.status, REPORT_NOOP, 0);
 }
 
+// interrupt context
 void protocolReceive(int byteCount) {
   Serial.print("receive ");
   Serial.println(byteCount);
   
-  uint8_t* rbuf = (uint8_t*)(&pfsm.message);
+  volatile uint8_t* rbuf = (uint8_t*)(&pfsm.message);
   while(Wire.available()) {
     uint8_t next = Wire.read();
+    
+    // was the message delivered?
+    if(pfsm.state == P_MESSAGE_WAITING && pfsm.message_handled) {
+      if(pfsm.dropped_bytes % sizeof(pfsm.message) == 0) {
+        pfsm.state = P_READY;
+      } else {
+        pfsm.state = P_SYNCHRONIZING;
+      }
+      pfsm.message_handled = false;
+    }
     
     if(pfsm.state == P_MESSAGE_WAITING) {
       // we can't handle a new message. drop it on the floor
@@ -85,41 +103,42 @@ void protocolReceive(int byteCount) {
         pfsm.state = P_READY;
       }
     }
-    
-    Serial.print("byte = ");
-    Serial.print(next);
-    Serial.print(", state = ");
-    Serial.print(pfsm.state);
-    Serial.print(", count = ");
-    Serial.print(pfsm.message_bytes);
-    Serial.print(", dropped = ");
-    Serial.println(pfsm.dropped_bytes);
   }  
 }
 
+// interrupt context
 void protocolSend() {
+  if(pfsm.next_status_available) {
+    memcpy((char*)&pfsm.status, (char*)&pfsm.next_status, sizeof(Message));
+    pfsm.next_status_available = false;
+  }
+  
   int sent = Wire.write((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
   Serial.print("sent = ");
   Serial.println(sent);
 }
 
-bool protocolHasMessage(Message* msg) {
+bool protocolHasMessage(volatile Message* msg) {
   if(pfsm.state != P_MESSAGE_WAITING) return false;
+  if(pfsm.message_handled) return false;
   
-  *msg = pfsm.message;
-  if(pfsm.dropped_bytes % sizeof(pfsm.message) == 0) {
-    pfsm.state = P_READY;
-  } else {
-    pfsm.state = P_SYNCHRONIZING;
-  }
+  memcpy((char*)msg, (char*)&pfsm.message, sizeof(Message));
+  pfsm.message_handled = true;
+  return true;
 }
 
-void protocolSetStatus(Message* msg) {
-  pfsm.status = *msg;
+void protocolSetStatus(volatile Message* msg) {
+  if(pfsm.next_status_available) return;
+  
+  memcpy((char*)&pfsm.next_status, (char*)msg, sizeof(Message));
+  pfsm.next_status_available = true;
 }
 
 void protocolSetStatus(MessageType type, uint16_t payload) {
-  messageInit(&pfsm.status, type, payload);
+  if(pfsm.next_status_available) return;
+  
+  messageInit(&pfsm.next_status, type, payload);
+  pfsm.next_status_available = true;
 }
 
 void mothershipInit() {
@@ -205,8 +224,13 @@ void loop()
       SMC.setMotorSpeed(0);
     } else if(mfsm.state == M_IDLE) {
       if(protocolHasMessage(&mfsm.current)) {
-        Serial.println("got message");
+        Serial.print("got message = ");
+        Serial.println(mfsm.current.type);
+        
         if(mfsm.current.type == COMMAND_SET_SPEED) {
+          Serial.print("COMMAND_SET_SPEED = ");
+          Serial.println((int16_t)messagePayload(&mfsm.current));
+          
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
           SMC.setMotorSpeed((int16_t)messagePayload(&mfsm.current));
@@ -217,9 +241,10 @@ void loop()
       }
     } else if(mfsm.state == M_EXECUTION) {
       uint32_t now = millis();
-      if(now < mfsm.start || (now - mfsm.start >= 5)) {
+      if(now < mfsm.start || (now - mfsm.start >= 1000)) {
         SMC.setMotorSpeed(0);
         mfsm.state = M_IDLE;
+        protocolSetStatus(&mfsm.current);
       }
     } else if(mfsm.state == M_ERROR) {
       uint32_t now = millis();
@@ -247,10 +272,12 @@ void loop()
     Serial.print("mothership state = ");
     Serial.println(mfsm.state);
   }
-   if(pInitState != pfsm.state) {
+  
+  if(pInitState != pfsm.state) {
     Serial.print("protocol state = ");
     Serial.println(mfsm.state);
   }
+  
   mInitState = mfsm.state;
   pInitState = pfsm.state;
 }
