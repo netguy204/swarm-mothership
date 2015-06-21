@@ -86,13 +86,12 @@ int main(int argc, char** argv) {
   joystickInit();
   uint8_t id = 0;
 
+  double value = 0;
   while(true) {
     js_event ev;
     joystickState(&ev);
 
-    double value = 0;
     if(ev.type == JS_EVENT_AXIS && ev.number == 1) {
-      printf("ev.value = %d\n", ev.value);
       value = ((double)ev.value) * (1000.0 / 32767.0);
     }
 
@@ -105,7 +104,7 @@ int main(int argc, char** argv) {
     int nwrote = 0;
     while(nwrote != sizeof(Message)) {
       int wrote = write(file, &msg[nwrote], sizeof(Message) - nwrote);
-      printf("wrote = %d\n", wrote);
+      if(wrote != sizeof(Message)) printf("wrote = %d\n", wrote);
       if(wrote > 0) {
         nwrote += wrote;
       }
@@ -120,14 +119,14 @@ int main(int argc, char** argv) {
       int nread = 0;
       while(nread != sizeof(Message)) {
         int justRead = read(file, &reply[nread], sizeof(Message) - nread);
-        printf("read = %d\n", justRead);
+        if(justRead != sizeof(Message)) printf("read = %d\n", justRead);
         if(justRead > 0) {
           nread += justRead;
         }
         usleep(10000);
       }
-      printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
       if(_reply.type == COMMAND_SET_SPEED && _reply.id == _msg.id) break;
+      printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
     }
     //usleep(10000);
   }
