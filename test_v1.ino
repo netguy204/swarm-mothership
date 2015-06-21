@@ -5,7 +5,7 @@
 #include "SMC.h"
 
 // some motor limit IDs
-#define FORWARD_ACCELERATION 5
+#define FORWARD_ACCELERATION 9
 #define REVERSE_ACCELERATION 9
 #define DECELERATION 2
 
@@ -19,7 +19,6 @@ struct ProtocolFSM {
   Message next_status;
   
   uint8_t message_bytes;
-  uint8_t dropped_bytes;
   uint8_t state;
   
   // flags
@@ -30,8 +29,7 @@ struct ProtocolFSM {
 enum {
   P_READY,
   P_RECEIVING,
-  P_MESSAGE_WAITING,
-  P_SYNCHRONIZING
+  P_MESSAGE_WAITING
 };
 
 volatile ProtocolFSM pfsm;
@@ -56,9 +54,9 @@ volatile MothershipFSM mfsm;
 
 void protocolInit() {
   pfsm.message_bytes = 0;
-  pfsm.dropped_bytes = 0;
   pfsm.state = P_READY;
   pfsm.message_handled = false;
+  pfsm.next_status_available = false;
   messageInit(&pfsm.status, REPORT_NOOP, 0, 0);
 }
 
@@ -74,37 +72,44 @@ void protocolReceive(int byteCount) {
     
     // was the message delivered?
     if(pfsm.state == P_MESSAGE_WAITING && pfsm.message_handled) {
-      if(pfsm.dropped_bytes % sizeof(pfsm.message) == 0) {
-        pfsm.state = P_READY;
-      } else {
-        pfsm.state = P_SYNCHRONIZING;
-      }
+      pfsm.state = P_READY;
       pfsm.message_handled = false;
     }
     
     if(pfsm.state == P_MESSAGE_WAITING) {
       // we can't handle a new message. drop it on the floor
-      pfsm.dropped_bytes++;
     } else if(pfsm.state == P_READY) {
       // start receiving a new message
       pfsm.message_bytes = 0;
-      pfsm.dropped_bytes = 0;
       pfsm.state = P_RECEIVING;
     }
     
     if(pfsm.state == P_RECEIVING) {
-      rbuf[pfsm.message_bytes] = next;
-      pfsm.message_bytes++;
-      if(pfsm.message_bytes == sizeof(pfsm.message)) {
-        pfsm.state = P_MESSAGE_WAITING;
-      }
-    } else if(pfsm.state == P_SYNCHRONIZING) {
-      // drop and see if we're syncd
-      pfsm.dropped_bytes++;
-      if(pfsm.dropped_bytes % sizeof(pfsm.message) == 0) {
-        pfsm.state = P_READY;
+      // make sure that the byte is of the type we expect
+      if(pfsm.message_bytes == 0 && !(next & 0x80)) {
+        // drop till we get a command
+        Serial.println("dropping non-command");
+      } else if(pfsm.message_bytes != 0 && (next & 0x80)) {
+        // lost sync, restart
+        Serial.println("lost sync, restarting");
+        pfsm.message_bytes = 0;
+        rbuf[pfsm.message_bytes] = next;
+        pfsm.message_bytes++;
+      } else {
+        rbuf[pfsm.message_bytes] = next;
+        pfsm.message_bytes++;
+        if(pfsm.message_bytes == sizeof(pfsm.message)) {
+          pfsm.state = P_MESSAGE_WAITING;
+        }
       }
     }
+    
+    /*
+    Serial.print("next = ");
+    Serial.print(next);
+    Serial.print(", state = ");
+    Serial.println(pfsm.state);
+    */
   }  
 }
 
@@ -237,10 +242,10 @@ void loop()
             Serial.println("chained!");
           }
           */
+          SMC.setMotorSpeed(messageSignedPayload(&mfsm.current));
+          protocolSetStatus(&mfsm.current);
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
-          SMC.setMotorSpeed((int16_t)messagePayload(&mfsm.current));
-          protocolSetStatus(&mfsm.current);
         } else {
           Serial.print("ignoring message ");
           Serial.println(mfsm.current.type);
@@ -252,7 +257,7 @@ void loop()
       }
     } else if(mfsm.state == M_EXECUTION) {
       uint32_t now = millis();
-      if(now < mfsm.start || (now - mfsm.start >= 30)) {
+      if(now < mfsm.start || (now - mfsm.start >= 20)) {
         mfsm.state = M_EXECUTION_COMPLETE; // open command chaining window
       }
     } else if(mfsm.state == M_ERROR) {
@@ -272,7 +277,7 @@ void loop()
   /*
   Serial.print("VIN = ");
   Serial.print(SMC.getVariable(INPUT_VOLTAGE));
-  Serial.println(" mV");
+  Serial.println(" mV");f
   */
   // if an error is stopping the motor, write the error status variable
   // and try to re-enable the motor
