@@ -5,7 +5,7 @@
 #include "SMC.h"
 
 // some motor limit IDs
-#define FORWARD_ACCELERATION 9
+#define FORWARD_ACCELERATION 5
 #define REVERSE_ACCELERATION 9
 #define DECELERATION 2
 
@@ -159,10 +159,11 @@ void smcInitialize() {
   SMC.reset();
   
   SMC.setMotorLimit(FORWARD_ACCELERATION, 4);
-  SMC.setMotorLimit(REVERSE_ACCELERATION, 10);
-  SMC.setMotorLimit(DECELERATION, 20);
+  SMC.setMotorLimit(REVERSE_ACCELERATION, 4);
+  SMC.setMotorLimit(DECELERATION, 4);
   
   // clear the safe-start violation and let the motor run
+  delay(5);
   SMC.exitSafeStart();
 }
 
@@ -242,8 +243,8 @@ void loop()
             Serial.println("chained!");
           }
           */
-          SMC.setMotorSpeed(messageSignedPayload(&mfsm.current));
           protocolSetStatus(&mfsm.current);
+          SMC.setMotorSpeed(messageSignedPayload(&mfsm.current));
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
         } else {
