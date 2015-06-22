@@ -108,14 +108,16 @@ int main(int argc, char** argv) {
       if(wrote > 0) {
         nwrote += wrote;
       }
-      usleep(10000);
+      if(nwrote < sizeof(Message)) usleep(10000);
     }
 
    // usleep(10000);
     Message _reply;
     uint8_t* reply = (uint8_t*)&_reply;
 
-    for(uint ii = 0; ii < 8; ++ii) {
+
+    const uint NRETRIES = 20;
+    for(uint ii = 0; ii < NRETRIES; ++ii) {
       int nread = 0;
       while(nread != sizeof(Message)) {
         int justRead = read(file, &reply[nread], sizeof(Message) - nread);
@@ -123,10 +125,17 @@ int main(int argc, char** argv) {
         if(justRead > 0) {
           nread += justRead;
         }
-        usleep(10000);
+        if(nread < sizeof(Message)) usleep(10000);
       }
-      if(_reply.type == COMMAND_SET_SPEED && _reply.id == _msg.id) break;
-      printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
+      if(_reply.type == COMMAND_SET_SPEED && _reply.id == _msg.id) {
+        break;
+      }
+      if(ii == (NRETRIES-1)) {
+        printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
+      } else {
+        // give the board time to handle the message
+        usleep(1000);
+      }
     }
     //usleep(10000);
   }
