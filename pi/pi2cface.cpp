@@ -164,7 +164,7 @@ int main(int argc, char** argv) {
         usleep(1000);
       }
     }
-    usleep(100000);
+    //usleep(100000);
   }
 
   /*
