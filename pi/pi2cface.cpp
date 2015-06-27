@@ -99,7 +99,7 @@ int main(int argc, char** argv) {
   int file;
 
   if ((file = open(devName, O_RDWR)) < 0) {
-    fprintf(stderr, "I2C: Failed to access %d\n", devName);
+    fprintf(stderr, "I2C: Failed to access %s\n", devName);
     exit(1);
   }
 
@@ -136,14 +136,17 @@ int main(int argc, char** argv) {
     uint8_t* msg = (uint8_t*)&_msg;
     messageSignedInit(&_msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
-    int nwrote = 0;
+    ssize_t nwrote = 0;
     while(nwrote != sizeof(Message)) {
-      int wrote = write(file, &msg[nwrote], sizeof(Message) - nwrote);
-      if(wrote != sizeof(Message)) printf("wrote = %d\n", wrote);
+      ssize_t wrote = write(file, &msg[nwrote], sizeof(Message) - nwrote);
+      if(wrote == -1) {
+        fprintf(stderr, "write failed: (%d) %s\n", errno, strerror(errno));
+      }
+      if(wrote != sizeof(Message)) printf("wrote = %ld\n", wrote);
       if(wrote > 0) {
         nwrote += wrote;
       }
-      if(nwrote < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
+      if(static_cast<size_t>(nwrote) < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
     }
 
     Message _reply;
@@ -151,20 +154,23 @@ int main(int argc, char** argv) {
 
     const uint NRETRIES = 20;
     for(uint ii = 0; ii < NRETRIES; ++ii) {
-      int nread = 0;
+      ssize_t nread = 0;
       while(nread != sizeof(Message)) {
-        int justRead = read(file, &reply[nread], sizeof(Message) - nread);
-        if(justRead != sizeof(Message)) printf("read = %d\n", justRead);
+        ssize_t justRead = read(file, &reply[nread], sizeof(Message) - nread);
+        if(justRead == -1) {
+          fprintf(stderr, "read failed: (%d) %s\n", errno, strerror(errno));
+        }
+        if(justRead != sizeof(Message)) printf("read = %ld\n", justRead);
         if(justRead > 0) {
           nread += justRead;
         }
-        if(nread < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
+        if(static_cast<size_t>(nread) < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
       }
       if(_reply.type == COMMAND_SET_MOTION && _reply.id == _msg.id) {
         break;
       }
       if(ii == (NRETRIES-1)) {
-        printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
+        printf("read %ld bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
       } else {
         // give the board time to handle the message, but still get
         // the next one in to allow chaining
