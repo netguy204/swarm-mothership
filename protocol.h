@@ -5,8 +5,7 @@
 
 enum MessageType {
   COMMAND_NOOP = 0x80,
-  COMMAND_SET_SPEED,
-  COMMAND_SET_SERVO,
+  COMMAND_SET_MOTION,
 
   REQUEST_TEMPERATURE,
 
@@ -27,9 +26,13 @@ struct Message {
 
 uint8_t messageChecksum(volatile Message* msg);
 void messageInit(volatile Message* msg, MessageType type, uint16_t value, uint8_t id);
+void messageInit(volatile Message* msg, MessageType type, uint8_t low, uint8_t high, uint8_t id);
 uint16_t messagePayload(volatile Message* msg);
 
 void messageSignedInit(volatile Message* msg, MessageType type, int16_t value, uint8_t id);
 int16_t messageSignedPayload(volatile Message* msg);
+
+int8_t messageSignedPayloadLow(volatile Message* msg);
+int8_t messageSignedPayloadHigh(volatile Message* msg);
 
 #endif

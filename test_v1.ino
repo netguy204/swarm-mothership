@@ -3,6 +3,7 @@
 
 #include "protocol.h"
 #include "SMC.h"
+#include <Servo.h>
 
 // some motor limit IDs
 #define FORWARD_ACCELERATION 5
@@ -12,6 +13,9 @@
 #define DIRPIN 8
 #define SPEEDPIN 9
 #define SLAVE_ADDRESS 0x04
+#define SERVO_PIN 5
+
+Servo servo;
 
 struct ProtocolFSM {
   Message message;
@@ -169,6 +173,9 @@ void smcInitialize() {
 
 void setup()
 {
+  servo.attach(SERVO_PIN);
+  servo.write(90);
+  
   // initialize our FSMs
   protocolInit();
   mothershipInit();
@@ -245,6 +252,12 @@ void loop()
           */
           protocolSetStatus(&mfsm.current);
           SMC.setMotorSpeed(messageSignedPayload(&mfsm.current));
+          mfsm.state = M_EXECUTION;
+          mfsm.start = millis();
+        }  else if(mfsm.current.type == COMMAND_SET_SERVO) {
+          int angle = messageSignedPayload(&mfsm.current);
+          Serial.println(angle);
+          //servo.write(angle);
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
         } else {
