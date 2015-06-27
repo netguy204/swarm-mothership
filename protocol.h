@@ -3,6 +3,9 @@
 
 #include <stdint.h>
 
+#define COMMAND_DURATION_MS 20
+#define COMMAND_DURATION_US (COMMAND_DURATION_MS * 1000)
+
 enum MessageType {
   COMMAND_NOOP = 0x80,
   COMMAND_SET_MOTION,

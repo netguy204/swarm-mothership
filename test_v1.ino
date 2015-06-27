@@ -298,7 +298,7 @@ void loop()
       }
     } else if(mfsm.state == M_EXECUTION) {
       uint32_t now = millis();
-      if(now < mfsm.start || (now - mfsm.start >= 20)) {
+      if(now < mfsm.start || (now - mfsm.start >= COMMAND_DURATION_MS)) {
         mfsm.state = M_EXECUTION_COMPLETE; // open command chaining window
       }
     } else if(mfsm.state == M_ERROR) {
