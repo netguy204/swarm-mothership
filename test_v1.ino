@@ -21,10 +21,10 @@ struct ProtocolFSM {
   Message message;
   Message status;
   Message next_status;
-  
+
   uint8_t message_bytes;
   uint8_t state;
-  
+
   // flags
   uint8_t message_handled : 1;
   uint8_t next_status_available : 1;
@@ -38,7 +38,7 @@ enum {
 
 volatile ProtocolFSM pfsm;
 
- 
+
 struct MothershipFSM {
   Message current;
   uint32_t start;
@@ -73,13 +73,13 @@ void protocolReceive(int byteCount) {
   volatile uint8_t* rbuf = (uint8_t*)(&pfsm.message);
   while(Wire.available()) {
     uint8_t next = Wire.read();
-    
+
     // was the message delivered?
     if(pfsm.state == P_MESSAGE_WAITING && pfsm.message_handled) {
       pfsm.state = P_READY;
       pfsm.message_handled = false;
     }
-    
+
     if(pfsm.state == P_MESSAGE_WAITING) {
       // we can't handle a new message. drop it on the floor
     } else if(pfsm.state == P_READY) {
@@ -87,7 +87,7 @@ void protocolReceive(int byteCount) {
       pfsm.message_bytes = 0;
       pfsm.state = P_RECEIVING;
     }
-    
+
     if(pfsm.state == P_RECEIVING) {
       // make sure that the byte is of the type we expect
       if(pfsm.message_bytes == 0 && !(next & 0x80)) {
@@ -107,14 +107,14 @@ void protocolReceive(int byteCount) {
         }
       }
     }
-    
+
     /*
     Serial.print("next = ");
     Serial.print(next);
     Serial.print(", state = ");
     Serial.println(pfsm.state);
     */
-  }  
+  }
 }
 
 // interrupt context
@@ -123,7 +123,7 @@ void protocolSend() {
     memcpy((char*)&pfsm.status, (char*)&pfsm.next_status, sizeof(Message));
     pfsm.next_status_available = false;
   }
-  
+
   int sent = Wire.write((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
   /*
   Serial.print("sent = ");
@@ -134,7 +134,7 @@ void protocolSend() {
 bool protocolHasMessage(volatile Message* msg) {
   if(pfsm.state != P_MESSAGE_WAITING) return false;
   if(pfsm.message_handled) return false;
-  
+
   memcpy((char*)msg, (char*)&pfsm.message, sizeof(Message));
   pfsm.message_handled = true;
   return true;
@@ -142,14 +142,14 @@ bool protocolHasMessage(volatile Message* msg) {
 
 void protocolSetStatus(volatile Message* msg) {
   if(pfsm.next_status_available) return;
-  
+
   memcpy((char*)&pfsm.next_status, (char*)msg, sizeof(Message));
   pfsm.next_status_available = true;
 }
 
 void protocolSetStatus(MessageType type, uint16_t payload, uint8_t id) {
   if(pfsm.next_status_available) return;
-  
+
   messageInit(&pfsm.next_status, type, payload, id);
   pfsm.next_status_available = true;
 }
@@ -161,11 +161,11 @@ void mothershipInit() {
 
 void smcInitialize() {
   SMC.reset();
-  
+
   SMC.setMotorLimit(FORWARD_ACCELERATION, 4);
   SMC.setMotorLimit(REVERSE_ACCELERATION, 4);
   SMC.setMotorLimit(DECELERATION, 4);
-  
+
   // clear the safe-start violation and let the motor run
   delay(5);
   SMC.exitSafeStart();
@@ -175,38 +175,38 @@ void setup()
 {
   servo.attach(SERVO_PIN);
   servo.write(90);
-  
+
   // initialize our FSMs
   protocolInit();
   mothershipInit();
-  
+
   Serial.begin(115200);    // for debugging (optional)
   SMC.begin();
   Wire.begin(SLAVE_ADDRESS);
   Wire.onReceive(protocolReceive);
   Wire.onRequest(protocolSend);
-  
+
   // this lets us read the state of the SMC ERR pin (optional)
   pinMode(errPin, INPUT);
- 
+
   smcInitialize();
-  
+
   // enable pullup resistors on our input pins
   pinMode(DIRPIN, INPUT);
   digitalWrite(DIRPIN, HIGH);
-  
+
   pinMode(SPEEDPIN, INPUT);
   digitalWrite(SPEEDPIN, HIGH);
 }
 
 int8_t mInitState = -1;
 int8_t pInitState = -1;
-  
+
 void loop()
-{  
+{
   int speed = 500;
   bool userOverride = false;
-  
+
   if(digitalRead(SPEEDPIN) == 0) {
     speed = 1500;
     userOverride = true;
@@ -215,7 +215,7 @@ void loop()
     speed = -speed;
     userOverride = true;
   }
-  
+
   if (digitalRead(errPin) == HIGH && mfsm.state != M_ERROR) {
     // once all other errors have been fixed,
     // this lets the motors run again
@@ -241,23 +241,23 @@ void loop()
       SMC.setMotorSpeed(0);
     } else if(mfsm.state == M_IDLE || mfsm.state == M_EXECUTION_COMPLETE) {
       if(protocolHasMessage(&mfsm.current)) {
-        if(mfsm.current.type == COMMAND_SET_SPEED) {
-          /*
-          Serial.print("COMMAND_SET_SPEED = ");
-          Serial.println((int16_t)messagePayload(&mfsm.current));
-          
+        if(mfsm.current.type == COMMAND_SET_MOTION) {
+          // payload is -30 to 30, scale to -2000 to 2000
+          int16_t speed = ((int16_t)messageSignedPayloadLow(&mfsm.current)) * (3000 / 30);
+          int16_t angle = ((int16_t)messageSignedPayloadHigh(&mfsm.current)) + 90;
+
+          Serial.print("speed = ");
+          Serial.print(speed);
+          Serial.print(",  angle = ");
+          Serial.println(angle);
+
           if(mfsm.state == M_EXECUTION_COMPLETE) {
             Serial.println("chained!");
           }
-          */
+
           protocolSetStatus(&mfsm.current);
-          SMC.setMotorSpeed(messageSignedPayload(&mfsm.current));
-          mfsm.state = M_EXECUTION;
-          mfsm.start = millis();
-        }  else if(mfsm.current.type == COMMAND_SET_SERVO) {
-          int angle = messageSignedPayload(&mfsm.current);
-          Serial.println(angle);
-          //servo.write(angle);
+          SMC.setMotorSpeed(speed);
+          servo.write(angle);
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
         } else {
@@ -285,8 +285,8 @@ void loop()
       SMC.reset();
     }
   }
- 
- 
+
+
   // write input voltage (in millivolts) to the serial monitor
   /*
   Serial.print("VIN = ");
@@ -295,18 +295,18 @@ void loop()
   */
   // if an error is stopping the motor, write the error status variable
   // and try to re-enable the motor
-  
+
   /*
   if(mInitState != mfsm.state) {
     Serial.print("mothership state = ");
     Serial.println(mfsm.state);
   }
-  
+
   if(pInitState != pfsm.state) {
     Serial.print("protocol state = ");
     Serial.println(mfsm.state);
   }
-  
+
   mInitState = mfsm.state;
   pInitState = pfsm.state;
   */

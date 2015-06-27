@@ -3,7 +3,7 @@
 
 SMCClass SMC;
 
-SMCClass::SMCClass() 
+SMCClass::SMCClass()
  : smcSerial(rxPin, txPin) {
 }
 
@@ -28,16 +28,16 @@ int SMCClass::readByte()
   if(smcSerial.readBytes(&c, 1) == 0){ return -1; }
   return (byte)c;
 }
- 
+
 // required to allow motors to move
 // must be called when controller restarts and after any error
 void SMCClass::exitSafeStart()
 {
   smcSerial.write(0x83);
 }
- 
+
 // speed should be a number from -3200 to 3200
-void SMCClass::setMotorSpeed(int speed)
+void SMCClass::setMotorSpeed(int16_t speed)
 {
   if (speed < 0)
   {
@@ -51,7 +51,7 @@ void SMCClass::setMotorSpeed(int speed)
   smcSerial.write(speed & 0x1F);
   smcSerial.write(speed >> 5);
 }
- 
+
 unsigned char SMCClass::setMotorLimit(unsigned char  limitID, unsigned int limitValue)
 {
   smcSerial.write(0xA2);
@@ -60,7 +60,7 @@ unsigned char SMCClass::setMotorLimit(unsigned char  limitID, unsigned int limit
   smcSerial.write(limitValue >> 7);
   return readByte();
 }
- 
+
 // returns the specified variable as an unsigned integer.
 // if the requested variable is signed, the value returned by this function
 // should be typecast as an int.
