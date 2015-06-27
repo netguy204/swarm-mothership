@@ -30,6 +30,7 @@ void messageInit(volatile Message* msg, MessageType type, uint8_t low, uint8_t h
 uint16_t messagePayload(volatile Message* msg);
 
 void messageSignedInit(volatile Message* msg, MessageType type, int16_t value, uint8_t id);
+void messageSignedInit(volatile Message* msg, MessageType type, int8_t low, int8_t high, uint8_t id);
 int16_t messageSignedPayload(volatile Message* msg);
 
 int8_t messageSignedPayloadLow(volatile Message* msg);

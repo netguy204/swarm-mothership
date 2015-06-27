@@ -122,11 +122,11 @@ int main(int argc, char** argv) {
 
     int16_t speed_ival = (int16_t)speed_value;
     int16_t angle_ival = (int16_t)angle_value;
-    printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
+    //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
 
     Message _msg;
     uint8_t* msg = (uint8_t*)&_msg;
-    messageInit(&_msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+    messageSignedInit(&_msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
     int nwrote = 0;
     while(nwrote != sizeof(Message)) {

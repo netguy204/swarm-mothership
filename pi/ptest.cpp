@@ -10,7 +10,12 @@ int main(int argc, char** argv) {
 
   int number = atoi(argv[1]);
   Message msg;
-  messageSignedInit(&msg, COMMAND_NOOP, number, 0);
-  printf("became = %d\n", messageSignedPayload(&msg));
+  for(int i = -number; i <= number; ++i) {
+    messageSignedInit(&msg, COMMAND_NOOP, i, 0);
+    printf("became = %d\n", messageSignedPayload(&msg));
+
+    messageSignedInit(&msg, COMMAND_NOOP, i, i, 0);
+    printf("became = %d, %d\n", messageSignedPayloadLow(&msg), messageSignedPayloadHigh(&msg));
+  }
   return 0;
 }
