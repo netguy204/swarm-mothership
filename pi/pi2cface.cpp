@@ -120,6 +120,14 @@ int main(int argc, char** argv) {
     double speed_value = ((double)state.axis[1]) * (30.0 / 32767.0);
     double angle_value = ((double)state.axis[0]) * (20.0 / 32767.0);
 
+    // deadzones
+    if(speed_value > -3 && speed_value < 3) {
+      speed_value = 0;
+    }
+    if(angle_value > -2 && angle_value < 2) {
+      angle_value = 0;
+    }
+
     int16_t speed_ival = (int16_t)speed_value;
     int16_t angle_ival = (int16_t)angle_value;
     //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
@@ -138,10 +146,8 @@ int main(int argc, char** argv) {
       if(nwrote < sizeof(Message)) usleep(10000);
     }
 
-   // usleep(10000);
     Message _reply;
     uint8_t* reply = (uint8_t*)&_reply;
-
 
     const uint NRETRIES = 20;
     for(uint ii = 0; ii < NRETRIES; ++ii) {
