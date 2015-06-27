@@ -3,7 +3,7 @@
 
 #include <stdint.h>
 
-#define COMMAND_DURATION_MS 80
+#define COMMAND_DURATION_MS 20
 #define COMMAND_DURATION_US (COMMAND_DURATION_MS * 1000)
 
 enum MessageType {
