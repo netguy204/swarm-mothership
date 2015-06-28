@@ -143,7 +143,7 @@ int main(int argc, char** argv) {
       if(wrote > 0) {
         nwrote += wrote;
       }
-      if(nwrote < sizeof(Message)) usleep(10000);
+      if(nwrote < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
     }
 
     Message _reply;
@@ -158,7 +158,7 @@ int main(int argc, char** argv) {
         if(justRead > 0) {
           nread += justRead;
         }
-        if(nread < sizeof(Message)) usleep(10000);
+        if(nread < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
       }
       if(_reply.type == COMMAND_SET_MOTION && _reply.id == _msg.id) {
         break;
@@ -166,8 +166,9 @@ int main(int argc, char** argv) {
       if(ii == (NRETRIES-1)) {
         printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
       } else {
-        // give the board time to handle the message
-        usleep(1000);
+        // give the board time to handle the message, but still get
+        // the next one in to allow chaining
+        usleep(COMMAND_DURATION_US / 2);
       }
     }
     //usleep(100000);
