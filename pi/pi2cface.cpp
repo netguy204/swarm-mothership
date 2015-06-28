@@ -57,7 +57,7 @@ void joystickState(js_state *js) {
   pollfd pfd;
   pfd.fd = jsfd;
   pfd.events = POLLIN;
-	int ret;
+        int ret;
   while(0 < (ret = poll(&pfd, 1, 0))) {
     js_event event;
     ret = read(jsfd, &event, sizeof(struct js_event));
@@ -125,7 +125,7 @@ int main(int argc, char** argv) {
   if (ioctl(file, I2C_SLAVE, ADDRESS) < 0) {
     fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
         ADDRESS, strerror(errno));
-		close(file);
+                close(file);
     exit(1);
   }
 
@@ -161,7 +161,7 @@ int main(int argc, char** argv) {
       if(wrote == -1) {
         fprintf(stderr, "write failed: (%d) %s\n", errno, strerror(errno));
       }
-      if(wrote != sizeof(Message)) printf("wrote = %ld\n", wrote);
+      if(wrote != sizeof(Message)) printf("wrote = %ld\n", static_cast<long>(wrote));
       if(wrote > 0) {
         nwrote += wrote;
       }
@@ -179,7 +179,7 @@ int main(int argc, char** argv) {
         if(justRead == -1) {
           fprintf(stderr, "read failed: (%d) %s\n", errno, strerror(errno));
         }
-        if(justRead != sizeof(Message)) printf("read = %ld\n", justRead);
+        if(justRead != sizeof(Message)) printf("read = %ld\n", static_cast<long>(justRead));
         if(justRead > 0) {
           nread += justRead;
         }
@@ -189,7 +189,7 @@ int main(int argc, char** argv) {
         break;
       }
       if(ii == (NRETRIES-1)) {
-        printf("read %ld bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
+        printf("read %ld bytes, type is %d, payload is %d id: %d vs %d\n", static_cast<long>(nread), _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
       } else {
         // give the board time to handle the message, but still get
         // the next one in to allow chaining
