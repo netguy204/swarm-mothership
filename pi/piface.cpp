@@ -1,14 +1,15 @@
-#include "protocol.h"
-
 #include <errno.h>
-#include <termios.h>
-#include <unistd.h>
+#include <fcntl.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <stdio.h>
-#include <sys/types.h>
+#include <termios.h>
+#include <unistd.h>
+
 #include <sys/stat.h>
-#include <fcntl.h>
+#include <sys/types.h>
+
+#include "protocol.h"
 
 #define error_message(...) fprintf(stderr, __VA_ARGS__)
 int

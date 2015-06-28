@@ -1,12 +1,12 @@
-#include <string.h>
-#include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
 
 // The PiWeather board i2c address
 #define ADDRESS 0x04

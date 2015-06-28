@@ -1,5 +1,6 @@
-#include "SMC.h"
 #include <Arduino.h>
+
+#include "SMC.h"
 
 SMCClass SMC;
 
