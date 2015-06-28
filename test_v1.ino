@@ -14,12 +14,8 @@ extern "C" {
 #define REVERSE_ACCELERATION 9
 #define DECELERATION 2
 
-#define DIRPIN 8
-#define SPEEDPIN 9
 #define SLAVE_ADDRESS 0x04
 #define SERVO_PIN 5
-
-Servo servo;
 
 struct ProtocolFSM {
   Message message;
@@ -40,8 +36,6 @@ enum {
   P_MESSAGE_WAITING
 };
 
-volatile ProtocolFSM pfsm;
-
 
 struct MothershipFSM {
   Message current;
@@ -58,7 +52,9 @@ enum {
 };
 
 
-volatile MothershipFSM mfsm;
+Servo servo;
+ProtocolFSM pfsm;
+MothershipFSM mfsm;
 
 void protocolInit() {
   pfsm.message_bytes = 0;
@@ -100,10 +96,10 @@ void twi_onSlaveReceive(uint8_t* inBytes, int numBytes) {
       // make sure that the byte is of the type we expect
       if(pfsm.message_bytes == 0 && !(next & 0x80)) {
         // drop till we get a command
-        Serial.println("dropping non-command");
+        Serial.println(F("dropping non-command"));
       } else if(pfsm.message_bytes != 0 && (next & 0x80)) {
         // lost sync, restart
-        Serial.println("lost sync, restarting");
+        Serial.println(F("lost sync, restarting"));
         pfsm.message_bytes = 0;
         rbuf[pfsm.message_bytes] = next;
         pfsm.message_bytes++;
@@ -214,31 +210,16 @@ void setup()
   pinMode(errPin, INPUT);
 
   smcInitialize();
-
-  // enable pullup resistors on our input pins
-  pinMode(DIRPIN, INPUT);
-  digitalWrite(DIRPIN, HIGH);
-
-  pinMode(SPEEDPIN, INPUT);
-  digitalWrite(SPEEDPIN, HIGH);
 }
 
+/* debugging
 int8_t mInitState = -1;
 int8_t pInitState = -1;
+*/
 
 void loop()
 {
-  int speed = 500;
-  bool userOverride = false;
-
-  if(digitalRead(SPEEDPIN) == 0) {
-    speed = 1500;
-    userOverride = true;
-  }
-  if(digitalRead(DIRPIN) == 0) {
-    speed = -speed;
-    userOverride = true;
-  }
+  delay(1);
 
   if (digitalRead(errPin) == HIGH && mfsm.state != M_ERROR) {
     // once all other errors have been fixed,
@@ -246,24 +227,15 @@ void loop()
     mfsm.state = M_ERROR;
     mfsm.start = millis();
     uint16_t error = SMC.getVariable(ERROR_STATUS);
-    Serial.print("Error Status: 0x");
+    Serial.print(F("Error Status: 0x"));
     Serial.println(error, HEX);
     if(error == 0) {
       // this error is recoverable
       smcInitialize();
     }
     protocolSetStatus(REPORT_MOTOR_ERROR, error, 0);
-  } else if(userOverride) {
-    protocolSetStatus(REPORT_USER_OVERRIDE, speed, 0);
-    mfsm.state = M_OVERRIDE;
-    SMC.setMotorSpeed(speed);
   } else {
-    if(mfsm.state == M_OVERRIDE) {
-      // user override complete
-      protocolSetStatus(REPORT_NOOP, 0, 0);
-      mfsm.state = M_IDLE;
-      SMC.setMotorSpeed(0);
-    } else if(mfsm.state == M_IDLE || mfsm.state == M_EXECUTION_COMPLETE) {
+    if(mfsm.state == M_IDLE || mfsm.state == M_EXECUTION_COMPLETE) {
       if(protocolHasMessage(&mfsm.current)) {
         if(mfsm.current.type == COMMAND_SET_MOTION) {
           // payload is -30 to 30, scale to -2000 to 2000
@@ -287,7 +259,7 @@ void loop()
           mfsm.state = M_EXECUTION;
           mfsm.start = millis();
         } else {
-          Serial.print("ignoring message ");
+          Serial.print(F("ignoring message "));
           Serial.println(mfsm.current.type);
         }
       } else if(mfsm.state == M_EXECUTION_COMPLETE) {
@@ -312,17 +284,7 @@ void loop()
     }
   }
 
-
-  // write input voltage (in millivolts) to the serial monitor
-  /*
-  Serial.print("VIN = ");
-  Serial.print(SMC.getVariable(INPUT_VOLTAGE));
-  Serial.println(" mV");f
-  */
-  // if an error is stopping the motor, write the error status variable
-  // and try to re-enable the motor
-
-  /*
+  /* debugging
   if(mInitState != mfsm.state) {
     Serial.print("mothership state = ");
     Serial.println(mfsm.state);

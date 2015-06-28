@@ -28,17 +28,17 @@ struct Message {
 };
 
 #ifdef __cplusplus
-uint8_t messageChecksum(volatile Message* msg);
-void messageInit(volatile Message* msg, MessageType type, uint16_t value, uint8_t id);
-void messageInit(volatile Message* msg, MessageType type, uint8_t low, uint8_t high, uint8_t id);
-uint16_t messagePayload(volatile Message* msg);
+uint8_t messageChecksum(Message* msg);
+void messageInit(Message* msg, MessageType type, uint16_t value, uint8_t id);
+void messageInit(Message* msg, MessageType type, uint8_t low, uint8_t high, uint8_t id);
+uint16_t messagePayload(Message* msg);
 
-void messageSignedInit(volatile Message* msg, MessageType type, int16_t value, uint8_t id);
-void messageSignedInit(volatile Message* msg, MessageType type, int8_t low, int8_t high, uint8_t id);
-int16_t messageSignedPayload(volatile Message* msg);
+void messageSignedInit(Message* msg, MessageType type, int16_t value, uint8_t id);
+void messageSignedInit(Message* msg, MessageType type, int8_t low, int8_t high, uint8_t id);
+int16_t messageSignedPayload(Message* msg);
 
-int8_t messageSignedPayloadLow(volatile Message* msg);
-int8_t messageSignedPayloadHigh(volatile Message* msg);
+int8_t messageSignedPayloadLow(Message* msg);
+int8_t messageSignedPayloadHigh(Message* msg);
 #endif
 
 #endif
