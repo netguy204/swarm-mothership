@@ -13,6 +13,53 @@
 #include "protocol.h"
 #include "joystick.h"
 
+enum ProtocolState {
+  DISCONNECTED,
+  DISCONNECTED_COOLDOWN,
+  IDLE,
+  SENDING,
+  ACKING
+};
+
+struct PFSM {
+  Message last_sent;
+  Message last_received;
+
+  Message to_send;
+
+  ProtocolState state;
+
+  const char* bus;
+  uint8_t dev;
+  int fp;
+
+  uint8_t outbound_message_waiting : 1;
+  uint8_t inbound_message_waiting : 1;
+};
+
+bool protocolInit(PFSM* pfsm, const char* bus, uint8_t dev) {
+  memset(pfsm, sizeof(PFSM), 0);
+
+  pfsm->state = DISCONNECTED;
+  pfsm->bus = bus;
+  pfsm->dev = dev;
+}
+
+void protocolUpdate(PFSM* pfsm) {
+  if(pfsm->state == DISCONNECTED) {
+    // attempt connection
+    if((pfsm->fp = open(pfsm->bus, O_RDWR)) < 0) {
+
+  }
+}
+
+
+bool protocolSend(PFSM* pfsm, Message* message) {
+  if(state == SENDING) return false;
+
+
+}
+
 // The PiWeather board i2c address
 //#define ADDRESS 0x04
 
