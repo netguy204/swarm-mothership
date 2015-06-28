@@ -3,7 +3,6 @@
 
 //#include <Wire.h>
 extern "C" {
-#define TWI_BUFFER_LENGTH (sizeof(Message) + 1)
 #include "custom_twi.h"
 }
 
