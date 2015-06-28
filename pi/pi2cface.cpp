@@ -117,14 +117,15 @@ int main(int argc, char** argv) {
   int file;
 
   if ((file = open(devName, O_RDWR)) < 0) {
-    fprintf(stderr, "I2C: Failed to access %s\n", devName);
+    fprintf(stderr, "I2C: Failed to access %s: %s\n", devName, strerror(errno));
     exit(1);
   }
 
-  printf("I2C: acquiring buss to 0x%x\n", ADDRESS);
+  printf("I2C: acquiring bus to %#x\n", ADDRESS);
 
   if (ioctl(file, I2C_SLAVE, ADDRESS) < 0) {
-    fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave 0x%x\n", ADDRESS);
+    fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
+        ADDRESS, strerror(errno));
     exit(1);
   }
 
