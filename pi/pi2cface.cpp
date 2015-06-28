@@ -125,6 +125,7 @@ int main(int argc, char** argv) {
   if (ioctl(file, I2C_SLAVE, ADDRESS) < 0) {
     fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
         ADDRESS, strerror(errno));
+		close(file);
     exit(1);
   }
 
