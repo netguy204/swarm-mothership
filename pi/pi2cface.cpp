@@ -1,15 +1,14 @@
-#include <string.h>
-#include <unistd.h>
 #include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
+
+#include <asm/types.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <stdlib.h>
-#include <asm/types.h>
-#include <poll.h>
 
 #include "protocol.h"
 
@@ -49,15 +48,23 @@ void joystickState(js_state *js) {
   if(jsfd <= 0) {
     // handle device reconnect
     jsfd = open ("/dev/input/js0", O_RDONLY);
-    if(jsfd <= 0) return;
+    if(jsfd <= 0) {
+      fprintf(stderr, "Cannot read /dev/input/js0: %s\n", strerror(errno));
+      return;
+    }
   }
 
   pollfd pfd;
   pfd.fd = jsfd;
   pfd.events = POLLIN;
-  while(poll(&pfd, 1, 0) == 1) {
+	int ret;
+  while(0 < (ret = poll(&pfd, 1, 0))) {
     js_event event;
-    if(read(jsfd, &event, sizeof(struct js_event)) != sizeof(struct js_event)) {
+    ret = read(jsfd, &event, sizeof(struct js_event));
+    if(ret < 0) {
+      fprintf(stderr, "js0 read error: %s\n", strerror(errno));
+    }
+    if(ret != sizeof(struct js_event)) {
       // handle device disconnect
       close(jsfd);
       jsfd = 0;
@@ -69,6 +76,9 @@ void joystickState(js_state *js) {
     } else if(event.type == JS_EVENT_AXIS && event.number < NAXIS) {
       state.axis[event.number] = event.value;
     }
+  }
+  if(ret < 0) {
+    fprintf(stderr, "js0 event failed: %s\n", strerror(errno));
   }
 
   *js = state;
@@ -93,20 +103,29 @@ int main(int argc, char** argv) {
   }
 
   const char* devName = argv[1];
-  int ADDRESS = atoi(argv[2]);
+  char* err;
+  int ADDRESS = strtol(argv[2], &err, 10);
+  if(!*argv[2] || *err) {
+    fprintf(stderr, "usage: %s <i2c-dev> <i2c-slave-number>\n", argv[0]);
+    fprintf(stderr, "       i2c-slave-number must be a number\n");
+    exit(1);
+  }
+
 
   printf("I2C: Connecting\n");
   int file;
 
   if ((file = open(devName, O_RDWR)) < 0) {
-    fprintf(stderr, "I2C: Failed to access %d\n", devName);
+    fprintf(stderr, "I2C: Failed to access %s: %s\n", devName, strerror(errno));
     exit(1);
   }
 
-  printf("I2C: acquiring buss to 0x%x\n", ADDRESS);
+  printf("I2C: acquiring bus to %#x\n", ADDRESS);
 
   if (ioctl(file, I2C_SLAVE, ADDRESS) < 0) {
-    fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave 0x%x\n", ADDRESS);
+    fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
+        ADDRESS, strerror(errno));
+		close(file);
     exit(1);
   }
 
@@ -117,8 +136,8 @@ int main(int argc, char** argv) {
     js_state state;
     joystickState(&state);
 
-    double speed_value = ((double)state.axis[1]) * (30.0 / 32767.0);
-    double angle_value = ((double)state.axis[0]) * (20.0 / 32767.0);
+    double speed_value = (static_cast<double>(state.axis[1])) * (30.0 / 32767.0);
+    double angle_value = (static_cast<double>(state.axis[0])) * (20.0 / 32767.0);
 
     // deadzones
     if(speed_value > -3 && speed_value < 3) {
@@ -128,43 +147,49 @@ int main(int argc, char** argv) {
       angle_value = 0;
     }
 
-    int16_t speed_ival = (int16_t)speed_value;
-    int16_t angle_ival = (int16_t)angle_value;
+    int16_t speed_ival = static_cast<int16_t>(speed_value);
+    int16_t angle_ival = static_cast<int16_t>(angle_value);
     //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
 
     Message _msg;
-    uint8_t* msg = (uint8_t*)&_msg;
+    uint8_t* msg = reinterpret_cast<uint8_t*>(&_msg);
     messageSignedInit(&_msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
-    int nwrote = 0;
+    ssize_t nwrote = 0;
     while(nwrote != sizeof(Message)) {
-      int wrote = write(file, &msg[nwrote], sizeof(Message) - nwrote);
-      if(wrote != sizeof(Message)) printf("wrote = %d\n", wrote);
+      ssize_t wrote = write(file, &msg[nwrote], sizeof(Message) - nwrote);
+      if(wrote == -1) {
+        fprintf(stderr, "write failed: (%d) %s\n", errno, strerror(errno));
+      }
+      if(wrote != sizeof(Message)) printf("wrote = %ld\n", wrote);
       if(wrote > 0) {
         nwrote += wrote;
       }
-      if(nwrote < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
+      if(static_cast<size_t>(nwrote) < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
     }
 
     Message _reply;
-    uint8_t* reply = (uint8_t*)&_reply;
+    uint8_t* reply = reinterpret_cast<uint8_t*>(&_reply);
 
     const uint NRETRIES = 20;
     for(uint ii = 0; ii < NRETRIES; ++ii) {
-      int nread = 0;
+      ssize_t nread = 0;
       while(nread != sizeof(Message)) {
-        int justRead = read(file, &reply[nread], sizeof(Message) - nread);
-        if(justRead != sizeof(Message)) printf("read = %d\n", justRead);
+        ssize_t justRead = read(file, &reply[nread], sizeof(Message) - nread);
+        if(justRead == -1) {
+          fprintf(stderr, "read failed: (%d) %s\n", errno, strerror(errno));
+        }
+        if(justRead != sizeof(Message)) printf("read = %ld\n", justRead);
         if(justRead > 0) {
           nread += justRead;
         }
-        if(nread < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
+        if(static_cast<size_t>(nread) < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
       }
       if(_reply.type == COMMAND_SET_MOTION && _reply.id == _msg.id) {
         break;
       }
       if(ii == (NRETRIES-1)) {
-        printf("read %d bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
+        printf("read %ld bytes, type is %d, payload is %d id: %d vs %d\n", nread, _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
       } else {
         // give the board time to handle the message, but still get
         // the next one in to allow chaining
@@ -174,41 +199,6 @@ int main(int argc, char** argv) {
     //usleep(100000);
   }
 
-  /*
-  int arg;
-
-  for (arg = 1; arg < argc; arg++) {
-    int val;
-    unsigned char cmd[16];
-
-    if (0 == sscanf(argv[arg], "%d", &val)) {
-      fprintf(stderr, "Invalid parameter %d \"%s\"\n", arg, argv[arg]);
-      exit(1);
-    }
-
-    printf("Sending %d\n", val);
-
-    cmd[0] = val;
-    if (write(file, cmd, 1) == 1) {
-
-      // As we are not talking to direct hardware but a microcontroller we
-      // need to wait a short while so that it can respond.
-      //
-      // 1ms seems to be enough but it depends on what workload it has
-      usleep(10000);
-
-      char buf[1];
-      if (read(file, buf, 1) == 1) {
-    int temp = (int) buf[0];
-
-    printf("Received %d\n", temp);
-      }
-    }
-
-    // Now wait else you could crash the arduino by sending requests too fast
-    usleep(10000);
-  }
-  */
   close(file);
   return (EXIT_SUCCESS);
 }
