@@ -93,7 +93,14 @@ int main(int argc, char** argv) {
   }
 
   const char* devName = argv[1];
-  int ADDRESS = atoi(argv[2]);
+  char* err;
+  int ADDRESS = strtol(argv[2], &err, 10);
+  if(!*argv[2] || *err) {
+    fprintf(stderr, "usage: %s i2c-dev i2c-slave-number\n", argv[0]);
+    fprintf(stderr, "       i2c-slave-number must be a number\n");
+    exit(1);
+  }
+
 
   printf("I2C: Connecting\n");
   int file;
