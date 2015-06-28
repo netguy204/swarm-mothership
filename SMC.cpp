@@ -26,7 +26,7 @@ int SMCClass::readByte()
 {
   char c;
   if(smcSerial.readBytes(&c, 1) == 0){ return -1; }
-  return (byte)c;
+  return static_cast<int>(c);
 }
 
 // required to allow motors to move

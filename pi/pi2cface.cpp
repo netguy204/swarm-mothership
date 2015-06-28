@@ -135,8 +135,8 @@ int main(int argc, char** argv) {
     js_state state;
     joystickState(&state);
 
-    double speed_value = ((double)state.axis[1]) * (30.0 / 32767.0);
-    double angle_value = ((double)state.axis[0]) * (20.0 / 32767.0);
+    double speed_value = (static_cast<double>(state.axis[1])) * (30.0 / 32767.0);
+    double angle_value = (static_cast<double>(state.axis[0])) * (20.0 / 32767.0);
 
     // deadzones
     if(speed_value > -3 && speed_value < 3) {
@@ -146,12 +146,12 @@ int main(int argc, char** argv) {
       angle_value = 0;
     }
 
-    int16_t speed_ival = (int16_t)speed_value;
-    int16_t angle_ival = (int16_t)angle_value;
+    int16_t speed_ival = static_cast<int16_t>(speed_value);
+    int16_t angle_ival = static_cast<int16_t>(angle_value);
     //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
 
     Message _msg;
-    uint8_t* msg = (uint8_t*)&_msg;
+    uint8_t* msg = reinterpret_cast<uint8_t*>(&_msg);
     messageSignedInit(&_msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
     ssize_t nwrote = 0;
@@ -168,7 +168,7 @@ int main(int argc, char** argv) {
     }
 
     Message _reply;
-    uint8_t* reply = (uint8_t*)&_reply;
+    uint8_t* reply = reinterpret_cast<uint8_t*>(&_reply);
 
     const uint NRETRIES = 20;
     for(uint ii = 0; ii < NRETRIES; ++ii) {
