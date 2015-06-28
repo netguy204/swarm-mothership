@@ -49,15 +49,23 @@ void joystickState(js_state *js) {
   if(jsfd <= 0) {
     // handle device reconnect
     jsfd = open ("/dev/input/js0", O_RDONLY);
-    if(jsfd <= 0) return;
+    if(jsfd <= 0) {
+      fprintf(stderr, "Cannot read /dev/input/js0: %s\n", strerror(errno));
+      return;
+    }
   }
 
   pollfd pfd;
   pfd.fd = jsfd;
   pfd.events = POLLIN;
-  while(poll(&pfd, 1, 0) == 1) {
+	int ret;
+  while(0 < (ret = poll(&pfd, 1, 0))) {
     js_event event;
-    if(read(jsfd, &event, sizeof(struct js_event)) != sizeof(struct js_event)) {
+    ret = read(jsfd, &event, sizeof(struct js_event));
+    if(ret < 0) {
+      fprintf(stderr, "js0 read error: %s\n", strerror(errno));
+    }
+    if(ret != sizeof(struct js_event)) {
       // handle device disconnect
       close(jsfd);
       jsfd = 0;
@@ -69,6 +77,9 @@ void joystickState(js_state *js) {
     } else if(event.type == JS_EVENT_AXIS && event.number < NAXIS) {
       state.axis[event.number] = event.value;
     }
+  }
+  if(ret < 0) {
+    fprintf(stderr, "js0 event failed: %s\n", strerror(errno));
   }
 
   *js = state;
