@@ -8,7 +8,7 @@ SMCClass::SMCClass()
 }
 
 void SMCClass::begin() {
-  smcSerial.begin(19200);
+  smcSerial.begin(115200);
   reset();
 }
 

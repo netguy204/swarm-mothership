@@ -1,12 +1,7 @@
 #include <SoftwareSerial.h>
+#include <Wire.h>
+
 #include "protocol.h"
-
-//#include <Wire.h>
-extern "C" {
-#define TWI_BUFFER_LENGTH (sizeof(Message) + 1)
-#include "custom_twi.h"
-}
-
 #include "SMC.h"
 #include <Servo.h>
 
@@ -70,18 +65,14 @@ void protocolInit() {
 }
 
 // interrupt context
-extern "C" {
-void twi_onSlaveReceive(uint8_t* inBytes, int numBytes) {
-  //interrupts(); //enable all interrupts
-  //EIMSK &= 0b11111110; //disable external interrupts
-
+void protocolReceive(int byteCount) {
   /*
   Serial.print("receive ");
   Serial.println(byteCount);
   */
   volatile uint8_t* rbuf = (uint8_t*)(&pfsm.message);
-  for(int ii = 0; ii < numBytes; ++ii) {
-    uint8_t next = inBytes[ii];
+  while(Wire.available()) {
+    uint8_t next = Wire.read();
 
     // was the message delivered?
     if(pfsm.state == P_MESSAGE_WAITING && pfsm.message_handled) {
@@ -124,30 +115,20 @@ void twi_onSlaveReceive(uint8_t* inBytes, int numBytes) {
     Serial.println(pfsm.state);
     */
   }
-
-
-  //EIMSK |= 0b00000001; //enable external interrupts
 }
 
 // interrupt context
-void twi_onSlaveTransmit() {
-  //interrupts(); //enable all interrupts
-  //EIMSK &= 0b11111110; //disable external interrupts
-
+void protocolSend() {
   if(pfsm.next_status_available) {
     memcpy((char*)&pfsm.status, (char*)&pfsm.next_status, sizeof(Message));
     pfsm.next_status_available = false;
   }
 
-
-  twi_transmit((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
+  int sent = Wire.write((uint8_t*)(&pfsm.status), sizeof(pfsm.status));
   /*
   Serial.print("sent = ");
   Serial.println(sent);
   */
-
-  //EIMSK |= 0b00000001; //enable external interrupts
-}
 }
 
 bool protocolHasMessage(volatile Message* msg) {
@@ -200,17 +181,11 @@ void setup()
   mothershipInit();
 
   Serial.begin(115200);    // for debugging (optional)
-
-  twi_setAddress(SLAVE_ADDRESS);
-  twi_init();
-
-  /*
+  SMC.begin();
   Wire.begin(SLAVE_ADDRESS);
   Wire.onReceive(protocolReceive);
   Wire.onRequest(protocolSend);
-  */
 
-  SMC.begin();
   // this lets us read the state of the SMC ERR pin (optional)
   pinMode(errPin, INPUT);
 
