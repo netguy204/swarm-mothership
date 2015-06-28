@@ -106,7 +106,7 @@ int main(int argc, char** argv) {
   char* err;
   int ADDRESS = strtol(argv[2], &err, 10);
   if(!*argv[2] || *err) {
-    fprintf(stderr, "usage: %s i2c-dev i2c-slave-number\n", argv[0]);
+    fprintf(stderr, "usage: %s <i2c-dev> <i2c-slave-number>\n", argv[0]);
     fprintf(stderr, "       i2c-slave-number must be a number\n");
     exit(1);
   }
@@ -199,41 +199,6 @@ int main(int argc, char** argv) {
     //usleep(100000);
   }
 
-  /*
-  int arg;
-
-  for (arg = 1; arg < argc; arg++) {
-    int val;
-    unsigned char cmd[16];
-
-    if (0 == sscanf(argv[arg], "%d", &val)) {
-      fprintf(stderr, "Invalid parameter %d \"%s\"\n", arg, argv[arg]);
-      exit(1);
-    }
-
-    printf("Sending %d\n", val);
-
-    cmd[0] = val;
-    if (write(file, cmd, 1) == 1) {
-
-      // As we are not talking to direct hardware but a microcontroller we
-      // need to wait a short while so that it can respond.
-      //
-      // 1ms seems to be enough but it depends on what workload it has
-      usleep(10000);
-
-      char buf[1];
-      if (read(file, buf, 1) == 1) {
-    int temp = (int) buf[0];
-
-    printf("Received %d\n", temp);
-      }
-    }
-
-    // Now wait else you could crash the arduino by sending requests too fast
-    usleep(10000);
-  }
-  */
   close(file);
   return (EXIT_SUCCESS);
 }
