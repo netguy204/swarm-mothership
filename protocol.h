@@ -27,6 +27,7 @@ struct Message {
   uint8_t id;
 };
 
+#ifdef __cplusplus
 uint8_t messageChecksum(volatile Message* msg);
 void messageInit(volatile Message* msg, MessageType type, uint16_t value, uint8_t id);
 void messageInit(volatile Message* msg, MessageType type, uint8_t low, uint8_t high, uint8_t id);
@@ -38,5 +39,6 @@ int16_t messageSignedPayload(volatile Message* msg);
 
 int8_t messageSignedPayloadLow(volatile Message* msg);
 int8_t messageSignedPayloadHigh(volatile Message* msg);
+#endif
 
 #endif
