@@ -11,77 +11,231 @@
 #include <sys/ioctl.h>
 
 #include "protocol.h"
+#include "joystick.h"
+#include "systemtime.h"
 
-#define NAXIS 6
-#define NBUTTONS 8
+#define PROTOCOL_STATE(m) \
+  m(DISCONNECTED),           \
+  m(DISCONNECTED_COOLDOWN),  \
+  m(IDLE),                   \
+  m(SENDING),                \
+  m(SENDING_FAILED),         \
+  m(ACKING),                 \
+  m(ACKING_FAILED),          \
+  m(ACK_COMPLETE),           \
+  m(STATE_MAX)
 
-struct js_event {
-  __u32 time;     /* event timestamp in milliseconds */
-  __s16 value;    /* value */
-  __u8 type;      /* event type */
-  __u8 number;    /* axis/button number */
+#define CREATE_ENUM(v) v
+#define CREATE_STRING(v) #v
+
+enum ProtocolState {
+  PROTOCOL_STATE(CREATE_ENUM)
 };
 
-struct js_state {
-  __s16 axis[NAXIS];
-  __u8 button[NBUTTONS];
+const char* ProtocolStateStr[] = {
+  PROTOCOL_STATE(CREATE_STRING)
 };
 
-#define JS_EVENT_BUTTON         0x01    /* button pressed/released */
-#define JS_EVENT_AXIS           0x02    /* joystick moved */
-#define JS_EVENT_INIT           0x80    /* initial state of device */
+static TimeLength DISCONNECTED_COOLDOWN_TIME = TimeLength::inSeconds(10);
+static TimeLength WRITE_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
+static TimeLength READ_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
+static TimeLength ACK_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(COMMAND_DURATION_MS/2);
+static const uint8_t MAX_ACK_ATTEMPTS = 20;
 
-int jsfd = 0;
+struct PFSM {
+  Message last_sent;
+  Message last_received;
 
-void joystickInit() {
-  jsfd = 0;
+  Message sending;
+  Message receiving;
+  Message to_send;
+
+  Time state_start;
+  TimeLength state_duration;
+
+  ProtocolState state;
+
+  const char* bus;
+  int fp;
+  uint8_t dev;
+  uint8_t sending_offset;
+  uint8_t receiving_offset;
+  uint8_t ack_attempts;
+
+  uint8_t outbound_message_waiting : 1;
+  uint8_t inbound_message_waiting : 1;
+  uint8_t ack_acknowledged : 1;
+  uint8_t failure_acknowledged : 1;
+};
+
+TimeLength protocolDelayRemaining(PFSM* pfsm) {
+  return pfsm->state_duration - (Time() - pfsm->state_start);
 }
 
-void joystickState(js_state *js) {
-  static js_state state;
-  static bool initialized = false;
-  if(!initialized) {
-    memset(&state, sizeof(js_state), 0);
-    initialized = true;
+bool protocolDelayExpired(PFSM* pfsm) {
+  return (Time() - pfsm->state_start) > pfsm->state_duration;
+}
+
+void protocolSetDelay(PFSM* pfsm, const TimeLength& duration) {
+  pfsm->state_start = Time();
+  pfsm->state_duration = duration;
+}
+
+void protocolInit(PFSM* pfsm, const char* bus, uint8_t dev) {
+  memset(pfsm, sizeof(PFSM), 0);
+
+  pfsm->state = DISCONNECTED;
+  pfsm->bus = bus;
+  pfsm->dev = dev;
+}
+
+void protocolUpdate(PFSM* pfsm) {
+  if(pfsm->state == DISCONNECTED_COOLDOWN && protocolDelayExpired(pfsm)) {
+    pfsm->state = DISCONNECTED;
   }
 
-  if(jsfd <= 0) {
-    // handle device reconnect
-    jsfd = open ("/dev/input/js0", O_RDONLY);
-    if(jsfd <= 0) {
-      fprintf(stderr, "Cannot read /dev/input/js0: %s\n", strerror(errno));
+  if(pfsm->state == DISCONNECTED) {
+    // attempt connection
+    fprintf(stderr, "I2C: Connecting\n");
+    if((pfsm->fp = open(pfsm->bus, O_RDWR)) < 0) {
+      fprintf(stderr, "I2C: Failed to access %s: %s\n", pfsm->bus, strerror(errno));
+      pfsm->state = DISCONNECTED_COOLDOWN;
+      protocolSetDelay(pfsm, DISCONNECTED_COOLDOWN_TIME);
+
       return;
     }
-  }
 
-  pollfd pfd;
-  pfd.fd = jsfd;
-  pfd.events = POLLIN;
-        int ret;
-  while(0 < (ret = poll(&pfd, 1, 0))) {
-    js_event event;
-    ret = read(jsfd, &event, sizeof(struct js_event));
-    if(ret < 0) {
-      fprintf(stderr, "js0 read error: %s\n", strerror(errno));
-    }
-    if(ret != sizeof(struct js_event)) {
-      // handle device disconnect
-      close(jsfd);
-      jsfd = 0;
+    fprintf(stderr, "I2C: acquiring bus to %#x\n", pfsm->dev);
+
+    if (ioctl(pfsm->fp, I2C_SLAVE, pfsm->dev) < 0) {
+      fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
+              pfsm->dev, strerror(errno));
+      close(pfsm->fp);
+      pfsm->state = DISCONNECTED_COOLDOWN;
+      protocolSetDelay(pfsm, DISCONNECTED_COOLDOWN_TIME);
+
       return;
     }
-    event.type &= ~JS_EVENT_INIT;
-    if(event.type == JS_EVENT_BUTTON && event.number < NBUTTONS) {
-      state.button[event.number] = event.value;
-    } else if(event.type == JS_EVENT_AXIS && event.number < NAXIS) {
-      state.axis[event.number] = event.value;
-    }
-  }
-  if(ret < 0) {
-    fprintf(stderr, "js0 event failed: %s\n", strerror(errno));
+
+    fprintf(stderr, "I2C: Connection successful\n");
+    pfsm->state = IDLE;
   }
 
-  *js = state;
+  if(pfsm->state == IDLE && pfsm->outbound_message_waiting) {
+    pfsm->state = SENDING;
+    pfsm->sending = pfsm->to_send;
+    pfsm->sending_offset = 0;
+    pfsm->outbound_message_waiting = false;
+  }
+
+  if(pfsm->state == SENDING && protocolDelayExpired(pfsm)) {
+    uint8_t* msg = (uint8_t*)&pfsm->sending;
+    ssize_t wrote = write(pfsm->fp, (const void*)&msg[pfsm->sending_offset], sizeof(Message) - pfsm->sending_offset);
+    if(wrote == -1) {
+      fprintf(stderr, "I2C: write failed: (%d) %s\n", errno, strerror(errno));
+      if(errno == EAGAIN || errno == EWOULDBLOCK) {
+        protocolSetDelay(pfsm, WRITE_AGAIN_COOLDOWN_TIME);
+      } else if(errno == EBADF) {
+        pfsm->state = DISCONNECTED;
+      } else {
+        // switch to a fail state so the user can decide what happens next
+        pfsm->state = SENDING_FAILED;
+        pfsm->failure_acknowledged = false;
+      }
+      return;
+    }
+    pfsm->sending_offset += wrote;
+    if(pfsm->sending_offset == sizeof(Message)) {
+      pfsm->state = ACKING;
+      pfsm->last_sent = pfsm->sending;
+      pfsm->ack_attempts = 0;
+      pfsm->receiving_offset = 0;
+    }
+  }
+
+  if(pfsm->state == ACKING && protocolDelayExpired(pfsm)) {
+    uint8_t* msg = (uint8_t*)&pfsm->receiving;
+    ssize_t nread = read(pfsm->fp, (void*)&msg[pfsm->receiving_offset], sizeof(Message) - pfsm->receiving_offset);
+    if(nread == -1) {
+      if(errno == EAGAIN || errno == EWOULDBLOCK) {
+        protocolSetDelay(pfsm, READ_AGAIN_COOLDOWN_TIME);
+      } else if(errno == EBADF) {
+        pfsm->state = DISCONNECTED;
+      } else {
+        fprintf(stderr, "I2C: read failed: (%d) %s\n", errno, strerror(errno));
+        pfsm->state = ACKING_FAILED;
+        pfsm->failure_acknowledged = false;
+      }
+      return;
+    }
+    pfsm->receiving_offset += nread;
+    if(pfsm->receiving_offset == sizeof(Message)) {
+      pfsm->last_received = pfsm->receiving;
+
+      if(pfsm->last_received.type == pfsm->last_sent.type && pfsm->last_received.id == pfsm->last_sent.id) {
+        pfsm->state = ACK_COMPLETE;
+        pfsm->ack_acknowledged = false;
+      } else {
+        pfsm->ack_attempts++;
+        pfsm->receiving_offset = 0;
+
+        /*
+        fprintf(stderr, "Attempt %d: type %d vs %d, id %d vs %d\n", pfsm->ack_attempts,
+                pfsm->last_received.type, pfsm->last_sent.type,
+                pfsm->last_received.id, pfsm->last_sent.id);
+        */
+        if(pfsm->ack_attempts == MAX_ACK_ATTEMPTS) {
+          pfsm->state = ACKING_FAILED;
+          pfsm->failure_acknowledged = false;
+        } else {
+          //fprintf(stderr, "read succeeded but wrong result, retry\n");
+          protocolSetDelay(pfsm, ACK_AGAIN_COOLDOWN_TIME);
+        }
+      }
+    }
+  }
+
+  if(pfsm->state == ACK_COMPLETE && pfsm->ack_acknowledged) {
+    pfsm->state = IDLE;
+  }
+
+  if(pfsm->state == ACKING_FAILED && pfsm->failure_acknowledged) {
+    pfsm->state = IDLE;
+  }
+
+  if(pfsm->state == SENDING_FAILED && pfsm->failure_acknowledged) {
+    pfsm->state = IDLE;
+  }
+}
+
+
+bool protocolSend(PFSM* pfsm, Message* message) {
+  if(pfsm->outbound_message_waiting) return false;
+
+  pfsm->to_send = *message;
+  pfsm->outbound_message_waiting = true;
+  return true;
+}
+
+bool protocolAcknowledgeAck(PFSM* pfsm) {
+  if(pfsm->ack_acknowledged) return false;
+
+  pfsm->ack_acknowledged = true;
+  return true;
+}
+
+bool protocolClearError(PFSM* pfsm) {
+  if(pfsm->failure_acknowledged) return false;
+
+  pfsm->failure_acknowledged = true;
+  return true;
+}
+
+bool protocolClose(PFSM* pfsm) {
+  if(pfsm->fp == 0) return false;
+  close(pfsm->fp);
+  pfsm->state = DISCONNECTED;
+  return true;
 }
 
 // The PiWeather board i2c address
@@ -102,103 +256,76 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  const char* devName = argv[1];
+  const char* bus = argv[1];
   char* err;
-  int ADDRESS = strtol(argv[2], &err, 10);
+  int dev = strtol(argv[2], &err, 10);
   if(!*argv[2] || *err) {
     fprintf(stderr, "usage: %s <i2c-dev> <i2c-slave-number>\n", argv[0]);
     fprintf(stderr, "       i2c-slave-number must be a number\n");
     exit(1);
   }
 
-
-  printf("I2C: Connecting\n");
-  int file;
-
-  if ((file = open(devName, O_RDWR)) < 0) {
-    fprintf(stderr, "I2C: Failed to access %s: %s\n", devName, strerror(errno));
-    exit(1);
-  }
-
-  printf("I2C: acquiring bus to %#x\n", ADDRESS);
-
-  if (ioctl(file, I2C_SLAVE, ADDRESS) < 0) {
-    fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
-        ADDRESS, strerror(errno));
-                close(file);
-    exit(1);
-  }
-
+  PFSM pfsm;
+  protocolInit(&pfsm, bus, dev);
   joystickInit();
   uint8_t id = 0;
+
+  // ProtocolState old_state = pfsm.state;
 
   while(true) {
     js_state state;
     joystickState(&state);
 
-    double speed_value = (static_cast<double>(state.axis[1])) * (30.0 / 32767.0);
-    double angle_value = (static_cast<double>(state.axis[0])) * (20.0 / 32767.0);
+    protocolUpdate(&pfsm);
 
-    // deadzones
-    if(speed_value > -3 && speed_value < 3) {
-      speed_value = 0;
+    /* DEBUGGING
+    if(pfsm.state != old_state) {
+      fprintf(stderr, "PFSM: %s => %s\n", ProtocolStateStr[old_state], ProtocolStateStr[pfsm.state]);
+      old_state = pfsm.state;
     }
-    if(angle_value > -2 && angle_value < 2) {
-      angle_value = 0;
+    */
+
+    // can we send another message?
+    if(pfsm.state == IDLE) {
+      double speed_value = (static_cast<double>(state.axis[1])) * (63.0 / 32767.0);
+      double angle_value = (static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+
+      // deadzones
+      if(speed_value > -5 && speed_value < 5) {
+        speed_value = 0;
+      }
+      if(angle_value > -2 && angle_value < 2) {
+        angle_value = 0;
+      }
+
+      int8_t speed_ival = static_cast<int8_t>(speed_value);
+      int8_t angle_ival = static_cast<int8_t>(angle_value);
+      //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
+
+      Message msg;
+      messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+
+      protocolSend(&pfsm, &msg);
     }
 
-    int16_t speed_ival = static_cast<int16_t>(speed_value);
-    int16_t angle_ival = static_cast<int16_t>(angle_value);
-    //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
-
-    Message _msg;
-    uint8_t* msg = reinterpret_cast<uint8_t*>(&_msg);
-    messageSignedInit(&_msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
-
-    ssize_t nwrote = 0;
-    while(nwrote != sizeof(Message)) {
-      ssize_t wrote = write(file, &msg[nwrote], sizeof(Message) - nwrote);
-      if(wrote == -1) {
-        fprintf(stderr, "write failed: (%d) %s\n", errno, strerror(errno));
-      }
-      if(wrote != sizeof(Message)) printf("wrote = %ld\n", static_cast<long>(wrote));
-      if(wrote > 0) {
-        nwrote += wrote;
-      }
-      if(static_cast<size_t>(nwrote) < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
+    if(pfsm.state == SENDING_FAILED || pfsm.state == ACKING_FAILED) {
+      // don't care for now
+      fprintf(stderr, "ignorning error\n");
+      protocolClearError(&pfsm);
     }
 
-    Message _reply;
-    uint8_t* reply = reinterpret_cast<uint8_t*>(&_reply);
-
-    const uint NRETRIES = 20;
-    for(uint ii = 0; ii < NRETRIES; ++ii) {
-      ssize_t nread = 0;
-      while(nread != sizeof(Message)) {
-        ssize_t justRead = read(file, &reply[nread], sizeof(Message) - nread);
-        if(justRead == -1) {
-          fprintf(stderr, "read failed: (%d) %s\n", errno, strerror(errno));
-        }
-        if(justRead != sizeof(Message)) printf("read = %ld\n", static_cast<long>(justRead));
-        if(justRead > 0) {
-          nread += justRead;
-        }
-        if(static_cast<size_t>(nread) < sizeof(Message)) usleep(COMMAND_DURATION_US / 4);
-      }
-      if(_reply.type == COMMAND_SET_MOTION && _reply.id == _msg.id) {
-        break;
-      }
-      if(ii == (NRETRIES-1)) {
-        printf("read %ld bytes, type is %d, payload is %d id: %d vs %d\n", static_cast<long>(nread), _reply.type, messagePayload(&_reply), _reply.id, _msg.id);
-      } else {
-        // give the board time to handle the message, but still get
-        // the next one in to allow chaining
-        usleep(COMMAND_DURATION_US / 2);
-      }
+    if(pfsm.state == ACK_COMPLETE) {
+      // TODO: tell the webservice that we did what was asked
+      protocolAcknowledgeAck(&pfsm);
     }
-    //usleep(100000);
+
+    // sleep off any delay the protocol is waiting for because we have
+    // nothing better to do right now
+    TimeLength delay = protocolDelayRemaining(&pfsm);
+    if(delay > TimeLength::inSeconds(0)) {
+      usleep(delay.microseconds());
+    }
   }
 
-  close(file);
   return (EXIT_SUCCESS);
 }
