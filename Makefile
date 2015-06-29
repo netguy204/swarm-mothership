@@ -10,7 +10,7 @@ uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 FORCE_MONITOR_PORT = 1
 MONITOR_PORT  = /dev/ttyACM0
 BOARD_TAG     = uno
-MCU           = atmega328
+MCU           = atmega328p
 ISP_PROG      = usbtiny
 
 RESET_CMD     = echo
