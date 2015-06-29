@@ -239,7 +239,7 @@ void loop()
       if(protocolHasMessage(&mfsm.current)) {
         if(mfsm.current.type == COMMAND_SET_MOTION) {
           // payload is -30 to 30, scale to -2000 to 2000
-          int16_t speed = ((int16_t)messageSignedPayloadLow(&mfsm.current)) * (3000 / 30);
+          int16_t speed = ((int16_t)messageSignedPayloadLow(&mfsm.current)) * (3000 / 63);
           int16_t angle = ((int16_t)messageSignedPayloadHigh(&mfsm.current)) + 90;
 
           /*
