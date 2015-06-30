@@ -6,16 +6,6 @@
 #include "joystick.h"
 #include "systemtime.h"
 
-// The PiWeather board i2c address
-//#define ADDRESS 0x04
-
-
-/*
- * Arduino is a pure I2C slave. This client writes commands to it and
- * reads the response after enough time has passed.
- */
-// The I2C bus: This is for V2 pi's. For V1 Model B you need i2c-0
-//static const char *devName = "/dev/i2c-0";
 
 int main(int argc, char** argv) {
 

@@ -52,6 +52,11 @@ void RealProtocolFSM::update() {
   }
 
   if(state == DISCONNECTED) {
+    /*
+     * Arduino is a pure I2C slave. This client writes commands to it and
+     * reads the response after enough time has passed.
+     */
+
     // attempt connection
     fprintf(stderr, "I2C: Connecting\n");
     if((fp = open(bus, O_RDWR)) < 0) {
