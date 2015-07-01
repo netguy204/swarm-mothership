@@ -46,40 +46,57 @@ int main(int argc, char** argv) {
 
     // can we send another message?
     if(pfsm.state == IDLE) {
-      double speed_value = (static_cast<double>(state.axis[1])) * (33.0 / 32767.0);
-      double angle_value = -(static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+      if(Time() - lastJoystickUpdate() < TimeLength::inSeconds(10)) {
 
-      // deadzones
-      if(speed_value > -5 && speed_value < 5) {
-        speed_value = 0;
+
+	double speed_value = (static_cast<double>(state.axis[1])) * (63.0 / 32767.0);
+	double angle_value = (static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+
+	// deadzones
+	if(speed_value > -5 && speed_value < 5) {
+	  speed_value = 0;
+	}
+	if(angle_value > -2 && angle_value < 2) {
+	  angle_value = 0;
+	}
+
+	int8_t speed_ival = static_cast<int8_t>(speed_value);
+	int8_t angle_ival = static_cast<int8_t>(angle_value);
+	//printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
+
+	Message msg;
+	messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+
+	pfsm.send(&msg);
+      } else {
+
+	// ask the webservice
+
+	// format the command
+
+	// pfsm.send(command)
+
+	// remember what we sent last
       }
-      if(angle_value > -2 && angle_value < 2) {
-        angle_value = 0;
-      }
-
-      int8_t speed_ival = static_cast<int8_t>(speed_value);
-      int8_t angle_ival = static_cast<int8_t>(angle_value);
-      //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
-
-      Message msg;
-      messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
-
-      pfsm.send(&msg);
     }
 
     if(pfsm.state == SENDING_FAILED || pfsm.state == ACKING_FAILED) {
       // don't care for now
       fprintf(stderr, "ignorning error\n");
       pfsm.clearError();
+
+      // webservice: resend what we sent last
     }
 
     if(pfsm.state == ACK_COMPLETE) {
       // TODO: tell the webservice that we did what was asked
       pfsm.acknowledgeAck();
+
+      // webservice: tell the service we finished the command
     }
 
     // sleep off any delay the protocol is waiting for because we have
-    // nothing better to do right now
+    // nothing better to do right now - imp. b/c running on battery
     TimeLength delay = pfsm.delayRemaining();
     if(delay > TimeLength::inSeconds(0)) {
       usleep(delay.microseconds());

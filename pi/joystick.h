@@ -15,5 +15,7 @@ struct js_state {
 void joystickInit();
 
 void joystickState(js_state *js);
+ 
+Time lastJoystickUpdate();
 
 #endif

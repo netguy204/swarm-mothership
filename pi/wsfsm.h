@@ -1,5 +1,5 @@
-#ifndef PFSM_H
-#define PFSM_H
+#ifndef WSFSM_H
+#define WSFSM_H
 
 #include "systemtime.h"
 #include "protocol.h"
@@ -31,11 +31,11 @@ enum ProtocolState {
 extern const char* ProtocolStateStr[];
 
 /**
- * Base class for the PI side of the protocol finite state machine.
+ * Web service class for the PI side of the protocol finite state machine.
  * Portions of this are pure virtual so that the interface with the
  * alamode can be emulated or real.
  */
-class ProtocolFSM {
+class WebServiceFSM {
  private:
   Time state_start;
   TimeLength state_duration;
@@ -63,7 +63,7 @@ class ProtocolFSM {
 };
 
 
-class RealProtocolFSM : public ProtocolFSM {
+class RealWebServiceFSM : public WebServiceFSM {
  private:
   Message last_sent;
   Message last_received;
@@ -92,7 +92,7 @@ class RealProtocolFSM : public ProtocolFSM {
   virtual bool clearError();
   virtual bool close();
 };
- 
+
 
 
 
