@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include <curl/curl.h>
+#include <ArduinoJson.h>
 
 #include "protocol.h"
 #include "systemtime.h"
@@ -24,6 +25,7 @@ class WebServiceFSM : public UpstreamFSM {
   Message receiving;
   Message to_send;
   CURL *curl;
+  StaticJsonBuffer<200> jsonBuffer;
 
   const char* endpoint;
   int fp;

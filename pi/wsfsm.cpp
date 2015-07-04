@@ -28,6 +28,14 @@ void WebServiceFSM::init(const char* _endpoint) {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
 }
 
+void WebServiceFSM::pushCmdStatus(Message status) {
+  JsonObject& root = jsonBuffer.createObject();
+  root["pid"] = 0; // mothership 
+  root["cid"] = 1; // what should this be?
+  root["status"] = "true"; // true or false
+
+}
+
 void WebServiceFSM::update() {
   if(state == UpstreamState::DISCONNECTED_COOLDOWN && delayExpired()) {
     state = UpstreamState::DISCONNECTED;
