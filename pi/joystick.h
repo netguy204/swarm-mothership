@@ -3,6 +3,8 @@
 
 #include <asm/types.h>
 
+#include "systemtime.h"
+
 #define NAXIS 6
 #define NBUTTONS 8
 
@@ -15,7 +17,7 @@ struct js_state {
 void joystickInit();
 
 void joystickState(js_state *js);
- 
+
 Time lastJoystickUpdate();
 
 #endif

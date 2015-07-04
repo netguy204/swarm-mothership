@@ -1,6 +1,4 @@
-#include "wsfsm.h"
 #include <asm/types.h>
-#include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
@@ -8,115 +6,95 @@
 #include <unistd.h>
 #include <string.h>
 
-const char* ProtocolStateStr[] = {
-  PROTOCOL_STATE(CREATE_STRING)
-};
+#include "wsfsm.h"
 
-TimeLength WebServiceFSM::DISCONNECTED_COOLDOWN_TIME = TimeLength::inSeconds(10);
-TimeLength WebServiceFSM::WRITE_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
-TimeLength WebServiceFSM::READ_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
-TimeLength WebServiceFSM::ACK_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(COMMAND_DURATION_MS/2);
-const uint8_t WebServiceFSM::MAX_ACK_ATTEMPTS = 20;
-
-TimeLength WebServiceFSM::delayRemaining() {
-  return state_duration - (Time() - state_start);
+WebServiceFSM::WebServiceFSM() {
+  curl_global_init(CURL_GLOBAL_ALL);
+  curl = curl_easy_init();
 }
 
-bool WebServiceFSM::delayExpired() {
-  return (Time() - state_start) > state_duration;
+WebServiceFSM::~WebServiceFSM() {
+  curl_easy_cleanup(curl);
+  curl_global_cleanup();
 }
 
-void WebServiceFSM::setDelay(const TimeLength& duration) {
-  state_start = Time();
-  state_duration = duration;
-}
-
-
-
-void RealWebServiceFSM::init(const char* _bus, uint8_t _dev) {
-  state = DISCONNECTED;
-  bus = _bus;
-  dev = _dev;
+void WebServiceFSM::init(const char* _endpoint) {
+  state = UpstreamState::DISCONNECTED;
+  endpoint = _endpoint;
   outbound_message_waiting = false;
   ack_acknowledged = false;
   failure_acknowledged = false;
+
+  curl_easy_setopt(curl, CURLOPT_URL, endpoint);
 }
 
-void RealWebServiceFSM::update() {
-  if(state == DISCONNECTED_COOLDOWN && delayExpired()) {
-    state = DISCONNECTED;
+void WebServiceFSM::update() {
+  if(state == UpstreamState::DISCONNECTED_COOLDOWN && delayExpired()) {
+    state = UpstreamState::DISCONNECTED;
   }
 
-  if(state == DISCONNECTED) {
+  if(state == UpstreamState::DISCONNECTED) {
     // attempt connection
-    fprintf(stderr, "Node.js webservice: Connecting\n");
-    if((fp = open(bus, O_RDWR)) < 0) {
-      fprintf(stderr, "webservice: Failed to access %s: %s\n", bus, strerror(errno));
-      state = DISCONNECTED_COOLDOWN;
+    fprintf(stderr, "WebQ: Connecting\n");
+
+    CURLcode res = curl_easy_perform(curl);
+    /* Check for errors */
+    if(res != CURLE_OK) {
+      fprintf(stderr, "WebQ: Failed to access %s: %s\n", endpoint,
+              curl_easy_strerror(res));
+      state = UpstreamState::DISCONNECTED_COOLDOWN;
       setDelay(DISCONNECTED_COOLDOWN_TIME);
 
       return;
     }
 
-    fprintf(stderr, "I2C: acquiring bus to %#x\n", dev);
-
-    if (ioctl(fp, I2C_SLAVE, dev) < 0) {
-      fprintf(stderr, "I2C: Failed to acquire bus access/talk to slave %#x: %s\n",
-              dev, strerror(errno));
-      ::close(fp);
-      state = DISCONNECTED_COOLDOWN;
-      setDelay(DISCONNECTED_COOLDOWN_TIME);
-
-      return;
-    }
-
-    fprintf(stderr, "I2C: Connection successful\n");
-    state = IDLE;
+    fprintf(stderr, "WebQ: Connection successful\n");
+    state = UpstreamState::IDLE;
   }
 
-  if(state == IDLE && outbound_message_waiting) {
-    state = SENDING;
+  if(state == UpstreamState::IDLE && outbound_message_waiting) {
+    state = UpstreamState::SENDING;
     sending = to_send;
     sending_offset = 0;
     outbound_message_waiting = false;
   }
 
-  if(state == SENDING && delayExpired()) {
+  if(state == UpstreamState::SENDING && delayExpired()) {
     uint8_t* msg = (uint8_t*)&sending;
     ssize_t wrote = write(fp, (const void*)&msg[sending_offset], sizeof(Message) - sending_offset);
     if(wrote == -1) {
-      fprintf(stderr, "I2C: write failed: (%d) %s\n", errno, strerror(errno));
+      fprintf(stderr, "WebQ: write failed: (%d) %s\n", errno, strerror(errno));
       if(errno == EAGAIN || errno == EWOULDBLOCK) {
         setDelay(WRITE_AGAIN_COOLDOWN_TIME);
       } else if(errno == EBADF) {
-        state = DISCONNECTED;
+        state = UpstreamState::DISCONNECTED;
       } else {
         // switch to a fail state so the user can decide what happens next
-        state = SENDING_FAILED;
+        state = UpstreamState::SENDING_FAILED;
         failure_acknowledged = false;
       }
       return;
     }
     sending_offset += wrote;
     if(sending_offset == sizeof(Message)) {
-      state = ACKING;
+      state = UpstreamState::ACKING;
       last_sent = sending;
       ack_attempts = 0;
       receiving_offset = 0;
     }
   }
 
-  if(state == ACKING && delayExpired()) {
+  if(state == UpstreamState::ACKING && delayExpired()) {
     uint8_t* msg = (uint8_t*)&receiving;
     ssize_t nread = read(fp, (void*)&msg[receiving_offset], sizeof(Message) - receiving_offset);
     if(nread == -1) {
       if(errno == EAGAIN || errno == EWOULDBLOCK) {
         setDelay(READ_AGAIN_COOLDOWN_TIME);
       } else if(errno == EBADF) {
-        state = DISCONNECTED;
+        state = UpstreamState::DISCONNECTED;
       } else {
-        fprintf(stderr, "I2C: read failed: (%d) %s\n", errno, strerror(errno));
-        state = ACKING_FAILED;
+        fprintf(stderr, "WebQ: read failed: (%d) %s\n", errno, strerror(errno));
+        state = UpstreamState::ACKING_FAILED;
         failure_acknowledged = false;
       }
       return;
@@ -126,7 +104,7 @@ void RealWebServiceFSM::update() {
       last_received = receiving;
 
       if(last_received.type == last_sent.type && last_received.id == last_sent.id) {
-        state = ACK_COMPLETE;
+        state = UpstreamState::ACK_COMPLETE;
         ack_acknowledged = false;
       } else {
         ack_attempts++;
@@ -138,7 +116,7 @@ void RealWebServiceFSM::update() {
           last_received.id, last_sent.id);
         */
         if(ack_attempts == MAX_ACK_ATTEMPTS) {
-          state = ACKING_FAILED;
+          state = UpstreamState::ACKING_FAILED;
           failure_acknowledged = false;
         } else {
           //fprintf(stderr, "read succeeded but wrong result, retry\n");
@@ -148,20 +126,20 @@ void RealWebServiceFSM::update() {
     }
   }
 
-  if(state == ACK_COMPLETE && ack_acknowledged) {
-    state = IDLE;
+  if(state == UpstreamState::ACK_COMPLETE && ack_acknowledged) {
+    state = UpstreamState::IDLE;
   }
 
-  if(state == ACKING_FAILED && failure_acknowledged) {
-    state = IDLE;
+  if(state == UpstreamState::ACKING_FAILED && failure_acknowledged) {
+    state = UpstreamState::IDLE;
   }
 
-  if(state == SENDING_FAILED && failure_acknowledged) {
-    state = IDLE;
+  if(state == UpstreamState::SENDING_FAILED && failure_acknowledged) {
+    state = UpstreamState::IDLE;
   }
 }
 
-bool RealWebServiceFSM::send(const Message* message) {
+bool WebServiceFSM::send(const Message* message) {
   if(outbound_message_waiting) return false;
 
   to_send = *message;
@@ -169,23 +147,23 @@ bool RealWebServiceFSM::send(const Message* message) {
   return true;
 }
 
-bool RealWebServiceFSM::acknowledgeAck() {
+bool WebServiceFSM::acknowledgeAck() {
   if(ack_acknowledged) return false;
 
   ack_acknowledged = true;
   return true;
 }
 
-bool RealWebServiceFSM::clearError() {
+bool WebServiceFSM::clearError() {
   if(failure_acknowledged) return false;
 
   failure_acknowledged = true;
   return true;
 }
 
-bool RealWebServiceFSM::close() {
+bool WebServiceFSM::close() {
   if(fp == 0) return false;
   ::close(fp);
-  state = DISCONNECTED;
+  state = UpstreamState::DISCONNECTED;
   return true;
 }

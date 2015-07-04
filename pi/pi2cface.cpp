@@ -1,10 +1,12 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
+#include "joystick.h"
 #include "pfsm.h"
 #include "protocol.h"
-#include "joystick.h"
 #include "systemtime.h"
+#include "wsfsm.h"
 
 
 int main(int argc, char** argv) {
@@ -23,7 +25,10 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  WebServiceFSM wsfsm;
+
   RealProtocolFSM pfsm;
+  wsfsm.init("http://localhost:8080/");
   pfsm.init(bus, dev);
 
   joystickInit();
@@ -35,6 +40,7 @@ int main(int argc, char** argv) {
     js_state state;
     joystickState(&state);
 
+    wsfsm.update();
     pfsm.update();
 
     /* DEBUGGING
@@ -49,34 +55,34 @@ int main(int argc, char** argv) {
       if(Time() - lastJoystickUpdate() < TimeLength::inSeconds(10)) {
 
 
-	double speed_value = (static_cast<double>(state.axis[1])) * (63.0 / 32767.0);
-	double angle_value = (static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+        double speed_value = (static_cast<double>(state.axis[1])) * (63.0 / 32767.0);
+        double angle_value = (static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
 
-	// deadzones
-	if(speed_value > -5 && speed_value < 5) {
-	  speed_value = 0;
-	}
-	if(angle_value > -2 && angle_value < 2) {
-	  angle_value = 0;
-	}
+        // deadzones
+        if(speed_value > -5 && speed_value < 5) {
+          speed_value = 0;
+        }
+        if(angle_value > -2 && angle_value < 2) {
+          angle_value = 0;
+        }
 
-	int8_t speed_ival = static_cast<int8_t>(speed_value);
-	int8_t angle_ival = static_cast<int8_t>(angle_value);
-	//printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
+        int8_t speed_ival = static_cast<int8_t>(speed_value);
+        int8_t angle_ival = static_cast<int8_t>(angle_value);
+        //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
 
-	Message msg;
-	messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+        Message msg;
+        messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
-	pfsm.send(&msg);
+        pfsm.send(&msg);
       } else {
 
-	// ask the webservice
+        // ask the webservice
 
-	// format the command
+        // format the command
 
-	// pfsm.send(command)
+        // pfsm.send(command)
 
-	// remember what we sent last
+        // remember what we sent last
       }
     }
 
