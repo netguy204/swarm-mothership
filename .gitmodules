@@ -1,3 +1,6 @@
 [submodule "ArduinoJson"]
 	path = ArduinoJson
 	url = git@github.com:bblanchon/ArduinoJson.git
+[submodule "MQ"]
+	path = MQ
+	url = git@github.com:seankain/swarm-mothership.git
