@@ -1,4 +1,4 @@
-#include "pfsm.h"
+#include "wsfsm.h"
 #include <asm/types.h>
 #include <linux/i2c-dev.h>
 #include <sys/ioctl.h>
@@ -12,32 +12,28 @@ const char* ProtocolStateStr[] = {
   PROTOCOL_STATE(CREATE_STRING)
 };
 
-TimeLength ProtocolFSM::DISCONNECTED_COOLDOWN_TIME = TimeLength::inSeconds(10);
-TimeLength ProtocolFSM::WRITE_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
-TimeLength ProtocolFSM::READ_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
-TimeLength ProtocolFSM::ACK_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(COMMAND_DURATION_MS/2);
-const uint8_t ProtocolFSM::MAX_ACK_ATTEMPTS = 20;
+TimeLength WebServiceFSM::DISCONNECTED_COOLDOWN_TIME = TimeLength::inSeconds(10);
+TimeLength WebServiceFSM::WRITE_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
+TimeLength WebServiceFSM::READ_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(1);
+TimeLength WebServiceFSM::ACK_AGAIN_COOLDOWN_TIME = TimeLength::inMilliseconds(COMMAND_DURATION_MS/2);
+const uint8_t WebServiceFSM::MAX_ACK_ATTEMPTS = 20;
 
-TimeLength ProtocolFSM::delayRemaining() {
+TimeLength WebServiceFSM::delayRemaining() {
   return state_duration - (Time() - state_start);
 }
 
-bool ProtocolFSM::delayExpired() {
+bool WebServiceFSM::delayExpired() {
   return (Time() - state_start) > state_duration;
 }
 
-void ProtocolFSM::setDelay(const TimeLength& duration) {
+void WebServiceFSM::setDelay(const TimeLength& duration) {
   state_start = Time();
   state_duration = duration;
 }
 
 
 
-
-
-
-
-void RealProtocolFSM::init(const char* _bus, uint8_t _dev) {
+void RealWebServiceFSM::init(const char* _bus, uint8_t _dev) {
   state = DISCONNECTED;
   bus = _bus;
   dev = _dev;
@@ -46,21 +42,16 @@ void RealProtocolFSM::init(const char* _bus, uint8_t _dev) {
   failure_acknowledged = false;
 }
 
-void RealProtocolFSM::update() {
+void RealWebServiceFSM::update() {
   if(state == DISCONNECTED_COOLDOWN && delayExpired()) {
     state = DISCONNECTED;
   }
 
   if(state == DISCONNECTED) {
-    /*
-     * Arduino is a pure I2C slave. This client writes commands to it and
-     * reads the response after enough time has passed.
-     */
-
     // attempt connection
-    fprintf(stderr, "I2C: Connecting\n");
+    fprintf(stderr, "Node.js webservice: Connecting\n");
     if((fp = open(bus, O_RDWR)) < 0) {
-      fprintf(stderr, "I2C: Failed to access %s: %s\n", bus, strerror(errno));
+      fprintf(stderr, "webservice: Failed to access %s: %s\n", bus, strerror(errno));
       state = DISCONNECTED_COOLDOWN;
       setDelay(DISCONNECTED_COOLDOWN_TIME);
 
@@ -170,7 +161,7 @@ void RealProtocolFSM::update() {
   }
 }
 
-bool RealProtocolFSM::send(const Message* message) {
+bool RealWebServiceFSM::send(const Message* message) {
   if(outbound_message_waiting) return false;
 
   to_send = *message;
@@ -178,21 +169,21 @@ bool RealProtocolFSM::send(const Message* message) {
   return true;
 }
 
-bool RealProtocolFSM::acknowledgeAck() {
+bool RealWebServiceFSM::acknowledgeAck() {
   if(ack_acknowledged) return false;
 
   ack_acknowledged = true;
   return true;
 }
 
-bool RealProtocolFSM::clearError() {
+bool RealWebServiceFSM::clearError() {
   if(failure_acknowledged) return false;
 
   failure_acknowledged = true;
   return true;
 }
 
-bool RealProtocolFSM::close() {
+bool RealWebServiceFSM::close() {
   if(fp == 0) return false;
   ::close(fp);
   state = DISCONNECTED;

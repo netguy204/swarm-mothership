@@ -10,8 +10,9 @@
  * the parallel list of strings that go with them. See:
  * http://www.50ply.com/blog/2013/04/19/eliminate-parallel-lists-with-higher-order-macros/
  */
-#define PROTOCOL_STATE(m) \
+#define WEBSERVICE_STATE(m) \
   m(DISCONNECTED),           \
+  m(CONNECTED),              \
   m(DISCONNECTED_COOLDOWN),  \
   m(IDLE),                   \
   m(SENDING),                \
@@ -24,16 +25,16 @@
 #define CREATE_ENUM(v) v
 #define CREATE_STRING(v) #v
 
-enum ProtocolState {
-  PROTOCOL_STATE(CREATE_ENUM)
+enum WebServiceState {
+  WEBSERVICE_STATE(CREATE_ENUM)
 };
 
-extern const char* ProtocolStateStr[];
+extern const char* WebServiceStateStr[];
 
 /**
- * Web service class for the PI side of the protocol finite state machine.
+ * Web service class for the PI side of the WebService finite state machine.
  * Portions of this are pure virtual so that the interface with the
- * alamode can be emulated or real.
+ * webservice can be emulated or real.
  */
 class WebServiceFSM {
  private:
@@ -48,7 +49,7 @@ class WebServiceFSM {
   static const uint8_t MAX_ACK_ATTEMPTS;
 
 
-  ProtocolState state;
+  WebServiceState state;
 
   TimeLength delayRemaining();
   bool delayExpired();
