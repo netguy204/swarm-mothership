@@ -28,12 +28,19 @@ void WebServiceFSM::init(const char* _endpoint) {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
 }
 
-void WebServiceFSM::pushCmdStatus(Message status) {
+void WebServiceFSM::pushCmdStatus() {
   JsonObject& root = jsonBuffer.createObject();
-  root["pid"] = 0; // mothership 
+  root["pid"] = 0; // mothership
   root["cid"] = 1; // what should this be?
   root["status"] = "true"; // true or false
 
+  // Add a byte at both the allocation and printing steps
+  // for the NULL.
+  char *buf = (char*)malloc(1 + root.measureLength());
+  root.printTo(buf, 1+root.measureLength());
+
+  printf("%s\n", buf);
+  free(buf);
 }
 
 void WebServiceFSM::update() {

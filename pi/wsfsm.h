@@ -43,6 +43,8 @@ class WebServiceFSM : public UpstreamFSM {
   WebServiceFSM();
   ~WebServiceFSM();
 
+  void pushCmdStatus();
+
   virtual void init(const char* endpoint);
   virtual void update();
   virtual bool send(const Message* message);

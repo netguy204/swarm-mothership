@@ -10,6 +10,7 @@ int main(int argc, char** argv) {
 
   wfsm.init("http://localhost:8080");
 
+  wfsm.pushCmdStatus();
   wfsm.update();
 
   return 0;
