@@ -1,0 +1,6 @@
+*~
+*.o
+.*swp
+
+pi/pi2cface
+pi/ptest
