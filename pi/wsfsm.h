@@ -26,6 +26,7 @@ class WebServiceFSM : public UpstreamFSM {
   Message to_send;
   CURL *curl;
   CURLcode res;
+  struct curl_slist *list;
   StaticJsonBuffer<200> jsonBuffer;
 
   const char* endpoint;
@@ -44,7 +45,7 @@ class WebServiceFSM : public UpstreamFSM {
   WebServiceFSM();
   ~WebServiceFSM();
 
-  void putCmdStatus();
+  void putCmdStatus(long cid, bool status);
   void pullQueuedCmd(char* json);
 
   virtual void init(const char* endpoint);
