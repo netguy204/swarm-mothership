@@ -33,12 +33,38 @@ void WebServiceFSM::init(const char* _endpoint) {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
 }
 
-void WebServiceFSM::pushCmdStatus() {
+void WebServiceFSM::putCmdStatus() {
   JsonObject& root = jsonBuffer.createObject();
   root["pid"] = 0; // mothership
   root["cid"] = 1; // what should this be?
   root["status"] = "true"; // true or false
 
+  // Add a byte at both the allocation and printing steps
+  // for the NULL.
+  char *buf = (char*)malloc(1 + root.measureLength());
+  root.printTo(buf, 1+root.measureLength());
+  printf("%s\n", buf);
+  free(buf);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"pid\":0,\"cid\":1,'\"status\":\"true\"}");
+  res = curl_easy_perform(curl);
+  if (res != CURLE_OK)
+    fprintf(stderr, "curl_easy_perform(curl) failed: %s\n",
+            curl_easy_strerror(res));
+  //char json[] =  "\{\"pid\":0,\"cid\":1,'\"status\":\"true\"\}";
+  
+}
+
+
+void WebServiceFSM::pullQueuedCmd(char* json) {
+  JsonObject& root = jsonBuffer.parseObject(json);
+
+  if (!root.success()) {
+    printf("json parsing failed.\n");
+    // should return
+  }
+
+  long pid = root["pid"];
+  long cmdId = root["cid"];
   // Add a byte at both the allocation and printing steps
   // for the NULL.
   char *buf = (char*)malloc(1 + root.measureLength());

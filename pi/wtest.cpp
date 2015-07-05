@@ -33,6 +33,12 @@ int main(int argc, char** argv) {
   curl_slist_free_all(list);
   curl_easy_cleanup(curl);
   curl_global_cleanup();
+  //=======
+  //wfsm.init("http://localhost:8080/update");
+
+  // wfsm.putCmdStatus();
+  //wfsm.update();
+
 
   return 0;
 }
