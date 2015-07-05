@@ -11,6 +11,11 @@
 WebServiceFSM::WebServiceFSM() {
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
+
+  struct curl_slist *list = NULL;
+  curl_slist_append(list, "Content-type: application/json");
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+  curl_slist_free_all(list);
 }
 
 WebServiceFSM::~WebServiceFSM() {
@@ -41,6 +46,15 @@ void WebServiceFSM::pushCmdStatus() {
 
   printf("%s\n", buf);
   free(buf);
+}
+
+size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
+  size_t n = 0;
+  while(n < size*nmemb) {
+    fprintf(stderr, "%c", (char)((char*)buffer)[n++]);
+  }
+
+  return nmemb;
 }
 
 void WebServiceFSM::update() {
