@@ -13,7 +13,7 @@ void SensorStatus::toJson(JsonObject& report) {
   report["lat"] = lat;
   report["long"] = lon;
   report["hdg"] = heading;
-  report["id"] = SWARM_ID;
+  report["pid"] = SWARM_ID;
   
   report["x"] = ecef_pos_cm.x;
   report["y"] = ecef_pos_cm.y;
