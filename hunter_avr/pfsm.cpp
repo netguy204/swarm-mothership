@@ -141,7 +141,7 @@ void ProtocolFSM::update() {
     status.toJson(obj);
     obj.printTo(buffer, sizeof(buffer));
     rest.setContentType("application/json");
-    rest.put("/update", buffer);
+    rest.put("/status", buffer);
     
     if(rest.getResponse(buffer, sizeof(buffer), true) == HTTP_STATUS_OK) {
       Serial.println("PFSM: wow, that was fast");
