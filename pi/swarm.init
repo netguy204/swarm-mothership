@@ -1,0 +1,38 @@
+#! /bin/sh
+# /etc/init.d/swarm
+#
+
+ROOT=/home/pi/src/swarm-mothership/pi
+PI2CFACE=$ROOT/pi2cface
+SERVERDIR=$ROOT/webserver
+SERVER="nodejs ./server.js"
+LOG=$ROOT/log.txt
+
+PI2CFACE_PID=/var/run/pi2cface.pid
+SERVER_PID=/var/run/server.js.pid
+
+# Carry out specific functions when asked to by the system
+case "$1" in
+  start)
+    echo "SWARM: Starting PI2CFACE "
+    sudo -u pi $PI2CFACE /dev/i2c-1 4 >> $LOG < /dev/null 2>&1 &
+    echo $! > $PI2CFACE_PID
+
+    echo "SWARM: Starting WEBSERVER"
+    (cd $SERVERDIR ; sudo -u pi $SERVER >> $LOG < /dev/null 2>&1 &)
+    echo $! > $SERVER_PID
+    ;;
+  stop)
+    echo "SWARM: Stopping PI2CFACE"
+    kill `cat $PI2CFACE_PID`
+
+    echo "SWARM: Stopping WEBSERVER"
+    kill `cat $SERVER_PID`
+    ;;
+  *)
+    echo "Usage: /etc/init.d/swarm {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0
