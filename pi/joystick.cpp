@@ -36,7 +36,8 @@ void joystickState(js_state *js) {
     // handle device reconnect
     jsfd = open ("/dev/input/js0", O_RDONLY);
     if(jsfd <= 0) {
-      fprintf(stderr, "Cannot read /dev/input/js0: %s\n", strerror(errno));
+      //it's normal for the joystick to be unplugged
+      //fprintf(stderr, "Cannot read /dev/input/js0: %s\n", strerror(errno));
       return;
     }
   }
