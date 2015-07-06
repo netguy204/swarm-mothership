@@ -35,8 +35,18 @@ void SensorStatus::toJson(JsonObject& report) {
 }
 
 bool DriveCommand::fromJson(JsonObject& cmd) {
-  if(!cmd.containsKey("cmd")) return false;
-  command = cmd["cmd"];
+  if(!cmd.containsKey("type")) return false;
+  if(strcmp(cmd["type"], "SET_HEADING") == 0) {
+    command = SET_HEADING;
+  } else {
+    const char* type = cmd["type"];
+    Serial.print("unrecognized type ");
+    Serial.println(type);
+    return false;
+  }
+  
+  cid = cmd["cid"];
+  pid = cmd["pid"];
   
   if(command == DRIVE) {
     if(!cmd.containsKey("sl") || !cmd.containsKey("sr")) return false;
@@ -53,7 +63,9 @@ bool DriveCommand::fromJson(JsonObject& cmd) {
     if(!cmd.containsKey("heading")) return false;
     
     payload.heading.heading = cmd["heading"];
+    return true;
   } else {
     return false;
   }
+ 
 }

@@ -26,7 +26,11 @@ class DriveCommand {
     SET_HEADING
   };
   
+  uint32_t cid;
+  uint8_t pid;
   uint8_t command;
+  
+  
   union {
     struct {
       int8_t speed_left;

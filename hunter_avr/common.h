@@ -5,6 +5,7 @@
 
 #define MAKE_ENUM(v) v
 #define MAKE_STRING(v) #v
+#define STRINGIFY(v) MAKE_STRING(v)
 
 #include <Arduino.h>
 

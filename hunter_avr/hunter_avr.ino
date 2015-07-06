@@ -44,11 +44,10 @@ class NorthFindingFred {
   };
   
   PID pid;
-  double p_setPoint, p_input, p_output;
   uint8_t state;
   
   public:
-  
+  double p_setPoint, p_input, p_output;
   NorthFindingFred()
   : state(STARTUP), pid(&p_input, &p_output, &p_setPoint, 2, 5, 1, PID::DIRECT) {
   }
@@ -66,18 +65,20 @@ class NorthFindingFred {
     if(state == SEARCHING || state == HOLDING) {
       if(mfsm.updated_data) {
         p_input = mfsm.filteredHeading();
+        double error = p_input - p_setPoint;
+        if(error > 180) {
+          p_input -= 360;
+        } else if(error < -180) {
+          p_input += 360;
+        }
+        
         if(abs(p_input - p_setPoint) < 5) {
           pid.SetMode(PID::MANUAL);
           tfsm.write(0, 0);
           state = HOLDING;
         } else {
           //Serial.println(p_output);
-          double error = p_input - p_setPoint;
-          if(error > 180) {
-            p_input -= 360;
-          } else if(error < -180) {
-            p_input += 360;
-          }
+          
           
           pid.SetMode(PID::AUTOMATIC);
           pid.Compute();
@@ -182,6 +183,7 @@ void loop() {
     ss.magnetometer = Vector<int16_t>(mfsm.x, mfsm.y, mfsm.z);
     ss.heading = mfsm.heading();
     ss.gps_time_ms = gpsfsm.lastTime;
+    
     ss.message_time_ms = gpsfsm.gmillis();
     ss.lat = gpsfsm.lat;
     ss.lon = gpsfsm.lon;
@@ -198,6 +200,13 @@ void loop() {
     Serial.print(ProtocolFSM::StateStr[old_state]);
     Serial.print(" => ");
     Serial.println(ProtocolFSM::StateStr[pfsm.state]);
+  }
+  
+  if(pfsm.command_valid && !pfsm.command_complete) {
+    if(pfsm.command.command == DriveCommand::SET_HEADING) {
+      nff.p_setPoint = pfsm.command.payload.heading.heading;
+    }
+    pfsm.command_complete = true;
   }
   
   pf.mark(5);
