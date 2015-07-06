@@ -46,7 +46,7 @@ class WebServiceFSM : public UpstreamFSM {
   ~WebServiceFSM();
 
   void putCmdStatus(long cid, bool status);
-  void pullQueuedCmd(char* json);
+  void pullQueuedCmd();
 
   virtual void init(const char* endpoint);
   virtual void update();

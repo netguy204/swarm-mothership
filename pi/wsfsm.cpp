@@ -8,6 +8,8 @@
 
 #include "wsfsm.h"
 
+static char cmdFromQueue[256];
+
 WebServiceFSM::WebServiceFSM() {
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
@@ -31,7 +33,8 @@ size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
   while(n < size*nmemb) {
     fprintf(stderr, "%c", (char)((char*)buffer)[n++]);
   }
-
+  strncpy(cmdFromQueue,(char*)buffer,size*nmemb);
+  cmdFromQueue[size*nmemb] = '\0';
   return nmemb;
 }
 
@@ -49,6 +52,7 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
 
   JsonObject& root = jsonBuffer.createObject();
   root["id"] = 0; // mothership
+  
   root["long"] = cid; // command id
   /*
   if (status) {
@@ -57,13 +61,12 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
     root["status"] = "false"; 
   }
   */
+
   /*
   JsonArray& data = root.createNestedArray("data");
   data.add(48.756080, 6);  // 6 is the number of decimals to print
   data.add(2.302038, 6);   // if not specified, 2 digits are printed
   */
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-  //  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
 
   // Add a byte at both the allocation and printing steps
   // for the NULL.
@@ -71,8 +74,9 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
   root.printTo(buf, 1+root.measureLength());
   printf("%s\n", buf);
 
-    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf);
-    //  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":0,\"long\":1}");
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+  //    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":0,\"long\":1}");
 
   CURLcode res = curl_easy_perform(curl);
   /* Check for errors */
@@ -88,26 +92,32 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
   
 }
 
-/*
-void WebServiceFSM::pullQueuedCmd(char* json) {
-  JsonObject& root = jsonBuffer.parseObject(json);
+
+void WebServiceFSM::pullQueuedCmd() {
+
+  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":15}");
+  CURLcode res = curl_easy_perform(curl);
+ 
+  if(res != CURLE_OK) {
+    fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
+        curl_easy_strerror(res));
+    //return 1;
+  }
+  fprintf(stderr, "WebQ: Connection successful\n");
+  fprintf(stderr, "%s\n", cmdFromQueue);
+  JsonObject& root = jsonBuffer.parseObject(cmdFromQueue);
 
   if (!root.success()) {
     printf("json parsing failed.\n");
     // should return?
   }
 
-  long pid = root["pid"];
-  long cmdId = root["cid"];
-  // Add a byte at both the allocation and printing steps
-  // for the NULL.
-  char *buf = (char*)malloc(1 + root.measureLength());
-  root.printTo(buf, 1+root.measureLength());
-
-  printf("%s\n", buf);
-  free(buf);
+  long pid = root["properties"]["id"];
+  //  long cmdId = root["cid"]; // UNCOMMENT AFTER ADDED TO WEBSERVICE
+  fprintf(stderr,"%ld\n",pid);
 }
-*/
+
 
 void WebServiceFSM::update() {
   if(state == UpstreamState::DISCONNECTED_COOLDOWN && delayExpired()) {
