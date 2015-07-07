@@ -53,7 +53,7 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
   JsonObject& root = jsonBuffer.createObject();
   root["id"] = 0; // mothership
   
-  root["long"] = cid; // command id
+  root["long"] = cid; // TEMP, should be "cid", command id
   /*
   if (status) {
     root["status"] = "true"; 
@@ -113,7 +113,8 @@ void WebServiceFSM::pullQueuedCmd() {
     // should return?
   }
 
-  long pid = root["properties"]["id"];
+  long pid = root["properties"][0];
+  //  long pid = root["properties"]["id"];
   //  long cmdId = root["cid"]; // UNCOMMENT AFTER ADDED TO WEBSERVICE
   fprintf(stderr,"%ld\n",pid);
 }
