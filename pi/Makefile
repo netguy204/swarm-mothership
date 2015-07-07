@@ -11,7 +11,7 @@ pi2cface: pi2cface.cpp ../mothership_avr/protocol.cpp $(OBJS)
 
 ptest: ptest.cpp ../mothership_avr/protocol.cpp
 
-wtest: wtest.cpp systemtime.o upstream.o wsfsm.o
+wtest: wtest.cpp systemtime.o upstream.o wsfsm.o ../mothership_avr/protocol.cpp
 
 clean:
 	@rm -f pi2cface ptest *.o

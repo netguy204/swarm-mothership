@@ -52,11 +52,13 @@ int main(int argc, char** argv) {
 
     // can we send another message?
     if(pfsm.state == IDLE) {
-      if(Time() - lastJoystickUpdate() < TimeLength::inSeconds(10)) {
+      double speed_value = 0.0;
+      double angle_value = 0.0;
 
+      if(Time() - lastJoystickUpdate() < TimeLength::inSeconds(1)) {
 
-        double speed_value = (static_cast<double>(state.axis[1])) * (63.0 / 32767.0);
-        double angle_value = (static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+        speed_value = (static_cast<double>(state.axis[1])) * (33.0 / 32767.0);
+        angle_value = (static_cast<double>(state.axis[0])) * (-30.0 / 32767.0);
 
         // deadzones
         if(speed_value > -5 && speed_value < 5) {
@@ -65,26 +67,22 @@ int main(int argc, char** argv) {
         if(angle_value > -2 && angle_value < 2) {
           angle_value = 0;
         }
-
-        int8_t speed_ival = static_cast<int8_t>(speed_value);
-        int8_t angle_ival = static_cast<int8_t>(angle_value);
-        //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
-
-        Message msg;
-        messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
-
-        pfsm.send(&msg);
-      } else {
-
-        // ask the webservice
-
-        // format the command
-
-        // pfsm.send(command)
-
-        // remember what we sent last
+      } else if (wsfsm.command_available) {
+        speed_value = wfsfm.command.speed * 33.0;
+        angle_value = max(-30.0,min(30.0,wfsfm.command.angle*-1.0));
+        wfsm.command_complete = true;
       }
+      int8_t speed_ival = static_cast<int8_t>(speed_value);
+      int8_t angle_ival = static_cast<int8_t>(angle_value);
+      //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
+      
+      Message msg;
+      messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+        
+      pfsm.send(&msg);
+
     }
+  
 
     if(pfsm.state == SENDING_FAILED || pfsm.state == ACKING_FAILED) {
       // don't care for now

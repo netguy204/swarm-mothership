@@ -18,37 +18,24 @@
 
 class WebServiceFSM : public UpstreamFSM {
  private:
-  Message last_sent;
-  Message last_received;
-
-  Message sending;
-  Message receiving;
-  Message to_send;
   CURL *curl;
   CURLcode res;
   struct curl_slist *list;
-  StaticJsonBuffer<200> jsonBuffer;
+  WebServiceMsg command;
 
-  const char* endpoint;
-  int fp;
-  uint8_t dev;
-  uint8_t sending_offset;
-  uint8_t receiving_offset;
-  uint8_t ack_attempts;
+  bool command_available;
+  bool command_completed;
 
-  uint8_t outbound_message_waiting : 1;
-  uint8_t ack_acknowledged : 1;
-  uint8_t failure_acknowledged : 1;
 
  public:
 
-  WebServiceFSM();
+  // TODO - update per cpp
+  WebServiceFSM(const char* endpoint);
   ~WebServiceFSM();
 
   void putCmdStatus(long cid, bool status);
-  void pullQueuedCmd();
+  Message pullQueuedCmd();
 
-  virtual void init(const char* endpoint);
   virtual void update();
   virtual bool send(const Message* message);
   virtual bool acknowledgeAck();

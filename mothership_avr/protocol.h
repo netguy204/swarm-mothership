@@ -22,8 +22,8 @@ enum MessageType {
 
 struct Message {
   uint8_t type;
-  uint8_t payload_low;
-  uint8_t payload_high;
+  uint8_t payload_low; // for SET_MOTION, this is motor speed
+  uint8_t payload_high; // for SET_MOTION, this is servo angle
   uint8_t id;
 };
 

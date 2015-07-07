@@ -11,6 +11,12 @@
 static char cmdFromQueue[256];
 
 WebServiceFSM::WebServiceFSM() {
+
+  state = UpstreamState::DISCONNECTED;
+  outbound_message_waiting = false;
+  ack_acknowledged = false;
+  failure_acknowledged = false;
+
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
   list = NULL;
@@ -38,36 +44,11 @@ size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
   return nmemb;
 }
 
-void WebServiceFSM::init(const char* _endpoint) {
-  state = UpstreamState::DISCONNECTED;
-  endpoint = _endpoint;
-  outbound_message_waiting = false;
-  ack_acknowledged = false;
-  failure_acknowledged = false;
+// TODO: need to be able to do both post (for sensor status) and put (for acking commands)
+// hence  httpMethod
+bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
 
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
-}
-
-void WebServiceFSM::putCmdStatus(long cid, bool status) {
-
-  JsonObject& root = jsonBuffer.createObject();
-  root["id"] = 0; // mothership
-  
-  root["long"] = cid; // TEMP, should be "cid", command id
-  /*
-  if (status) {
-    root["status"] = "true"; 
-  } else {
-    root["status"] = "false"; 
-  }
-  */
-
-  /*
-  JsonArray& data = root.createNestedArray("data");
-  data.add(48.756080, 6);  // 6 is the number of decimals to print
-  data.add(2.302038, 6);   // if not specified, 2 digits are printed
-  */
-
   // Add a byte at both the allocation and printing steps
   // for the NULL.
   char *buf = (char*)malloc(1 + root.measureLength());
@@ -75,187 +56,78 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
   printf("%s\n", buf);
 
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-  //    curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":0,\"long\":1}");
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf);
+  // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":0,\"long\":1}");
 
   CURLcode res = curl_easy_perform(curl);
   /* Check for errors */
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
-    //return 1;
+    free(buf);
+    return false;
   }
   fprintf(stderr, "WebQ: Connection successful\n");
   free(buf);
-
-  //char json[] =  "\{\"pid\":0,\"cid\":1,'\"status\":\"true\"\}";
-  
+  return true;
 }
 
-
-void WebServiceFSM::pullQueuedCmd() {
-
+JsonObject& fetchJson(StaticJsonBuffer<200>& jsonBuffer, const char* endpoint)
+{
+  curl_easy_setopt(curl, CURLOPT_URL, endpoint);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":15}");
   CURLcode res = curl_easy_perform(curl);
  
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
-    //return 1;
-  }
-  fprintf(stderr, "WebQ: Connection successful\n");
+    return jsonBuffer.parseObject("!!"); // so obj.success will be false
+   }
   fprintf(stderr, "%s\n", cmdFromQueue);
   JsonObject& root = jsonBuffer.parseObject(cmdFromQueue);
+  return root;
 
-  if (!root.success()) {
-    printf("json parsing failed.\n");
-    // should return?
   }
-
-  long pid = root["properties"][0];
-  //  long pid = root["properties"]["id"];
-  //  long cmdId = root["cid"]; // UNCOMMENT AFTER ADDED TO WEBSERVICE
-  fprintf(stderr,"%ld\n",pid);
-}
-
 
 void WebServiceFSM::update() {
-  if(state == UpstreamState::DISCONNECTED_COOLDOWN && delayExpired()) {
-    state = UpstreamState::DISCONNECTED;
+ 
+  if(state == UpstreamState:IDLE && !command_available && delayExpired()) {
+    state = UpstreamState::FETCH_CMD;
   }
-
-  if(state == UpstreamState::DISCONNECTED) {
-    // attempt connection
-    fprintf(stderr, "WebQ: Connecting\n");
-
-    CURLcode res = curl_easy_perform(curl);
-    /* Check for errors */
-    if(res != CURLE_OK) {
-      fprintf(stderr, "WebQ: Failed to access %s: %s\n", endpoint,
-              curl_easy_strerror(res));
-      state = UpstreamState::DISCONNECTED_COOLDOWN;
-      setDelay(DISCONNECTED_COOLDOWN_TIME);
-
-      return;
-    }
-
-    fprintf(stderr, "WebQ: Connection successful\n");
-    state = UpstreamState::IDLE;
-  }
-
-  if(state == UpstreamState::IDLE && outbound_message_waiting) {
-    state = UpstreamState::SENDING;
-    sending = to_send;
-    sending_offset = 0;
-    outbound_message_waiting = false;
-  }
-
-  if(state == UpstreamState::SENDING && delayExpired()) {
-    uint8_t* msg = (uint8_t*)&sending;
-    ssize_t wrote = write(fp, (const void*)&msg[sending_offset], sizeof(Message) - sending_offset);
-    if(wrote == -1) {
-      fprintf(stderr, "WebQ: write failed: (%d) %s\n", errno, strerror(errno));
-      if(errno == EAGAIN || errno == EWOULDBLOCK) {
-        setDelay(WRITE_AGAIN_COOLDOWN_TIME);
-      } else if(errno == EBADF) {
-        state = UpstreamState::DISCONNECTED;
-      } else {
-        // switch to a fail state so the user can decide what happens next
-        state = UpstreamState::SENDING_FAILED;
-        failure_acknowledged = false;
-      }
-      return;
-    }
-    sending_offset += wrote;
-    if(sending_offset == sizeof(Message)) {
-      state = UpstreamState::ACKING;
-      last_sent = sending;
-      ack_attempts = 0;
-      receiving_offset = 0;
-    }
+  if(state == UpstreamState:IDLE && command_complete) {
+    state = UpstreamState::ACKING;
   }
 
   if(state == UpstreamState::ACKING && delayExpired()) {
-    uint8_t* msg = (uint8_t*)&receiving;
-    ssize_t nread = read(fp, (void*)&msg[receiving_offset], sizeof(Message) - receiving_offset);
-    if(nread == -1) {
-      if(errno == EAGAIN || errno == EWOULDBLOCK) {
-        setDelay(READ_AGAIN_COOLDOWN_TIME);
-      } else if(errno == EBADF) {
-        state = UpstreamState::DISCONNECTED;
-      } else {
-        fprintf(stderr, "WebQ: read failed: (%d) %s\n", errno, strerror(errno));
-        state = UpstreamState::ACKING_FAILED;
-        failure_acknowledged = false;
-      }
-      return;
+    StaticJsonBuffer<200> jsonBuffer;
+    JsonObject& obj = jsonBuffer.createObject();
+    command.toJson(obj);
+    if (transmitJson("PUT","http://localhost:8080/commands",obj)) {
+      state = UpstreamState::IDLE;
+    } else {
+      setDelay(READ_AGAIN_COOLDOWN_TIME); // which delay period to use?
     }
-    receiving_offset += nread;
-    if(receiving_offset == sizeof(Message)) {
-      last_received = receiving;
-
-      if(last_received.type == last_sent.type && last_received.id == last_sent.id) {
-        state = UpstreamState::ACK_COMPLETE;
-        ack_acknowledged = false;
+  }
+  if(state == UpstreamState:FETCH_CMD) {
+    StaticJsonBuffer<200> jsonBuffer;
+    JsonObject& obj = fetchJson(jsonBuffer, "http://localhost:8080/commands?pid=0");
+    if (!obj.success()) {
+      setDelay(READ_AGAIN_COOLDOWN_TIME); 
+      state = UpstreamState::IDLE;
+    } else {
+      if (command.fromJson(obj)) {
+        command_available = true;
+        command_complete = false;
+        state = UpstreamState::IDLE;
       } else {
-        ack_attempts++;
-        receiving_offset = 0;
-
-        /*
-          fprintf(stderr, "Attempt %d: type %d vs %d, id %d vs %d\n", ack_attempts,
-          last_received.type, last_sent.type,
-          last_received.id, last_sent.id);
-        */
-        if(ack_attempts == MAX_ACK_ATTEMPTS) {
-          state = UpstreamState::ACKING_FAILED;
-          failure_acknowledged = false;
-        } else {
-          //fprintf(stderr, "read succeeded but wrong result, retry\n");
-          setDelay(ACK_AGAIN_COOLDOWN_TIME);
-        }
+        setDelay(READ_AGAIN_COOLDOWN_TIME); 
+        state = UpstreamState::IDLE;
       }
     }
   }
-
-  if(state == UpstreamState::ACK_COMPLETE && ack_acknowledged) {
-    state = UpstreamState::IDLE;
+  if(state == UpstreamState::SENDING && delayExpired()) {
+    // to be implemented later, when mothership has sensor status
   }
 
-  if(state == UpstreamState::ACKING_FAILED && failure_acknowledged) {
-    state = UpstreamState::IDLE;
-  }
 
-  if(state == UpstreamState::SENDING_FAILED && failure_acknowledged) {
-    state = UpstreamState::IDLE;
-  }
-}
-
-bool WebServiceFSM::send(const Message* message) {
-  if(outbound_message_waiting) return false;
-
-  to_send = *message;
-  outbound_message_waiting = true;
-  return true;
-}
-
-bool WebServiceFSM::acknowledgeAck() {
-  if(ack_acknowledged) return false;
-
-  ack_acknowledged = true;
-  return true;
-}
-
-bool WebServiceFSM::clearError() {
-  if(failure_acknowledged) return false;
-
-  failure_acknowledged = true;
-  return true;
-}
-
-bool WebServiceFSM::close() {
-  if(fp == 0) return false;
-  ::close(fp);
-  state = UpstreamState::DISCONNECTED;
-  return true;
 }
