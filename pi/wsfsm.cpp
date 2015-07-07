@@ -13,9 +13,8 @@ static char cmdFromQueue[256];
 WebServiceFSM::WebServiceFSM() {
 
   state = UpstreamState::DISCONNECTED;
-  outbound_message_waiting = false;
-  ack_acknowledged = false;
-  failure_acknowledged = false;
+  command_available = false;
+  command_completed = false;
 
   curl_global_init(CURL_GLOBAL_ALL);
   curl = curl_easy_init();
