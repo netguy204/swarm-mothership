@@ -1,74 +1,15 @@
 <html>
 <head>
-<script src="./pixi/pixi.dev.js"></script>
-<script>
-var renderer,stage,obstructionGraphics,hunterGraphics;
-
-function start(){
-renderer = PIXI.autoDetectRenderer(800, 600,{backgroundColor : 0x1099bb});
-console.log(document);
-document.body.appendChild(renderer.view);
-
-// create the root of the scene graph
-stage = new PIXI.Stage();
-stage.setBackgroundColor(0x022E1E);
-stage.interactive = true;
-obstructionGraphics = new PIXI.Graphics();
-hunterGraphics = new PIXI.Graphics();
-stage.addChild(obstructionGraphics);
-stage.addChild(hunterGraphics);
-renderer.resize(screen.availWidth,screen.availHeight);
-// start animating
-drawBackground();
-animate();
-
-setInterval(requestUpdate,2000);
-
-function animate() {
-    requestAnimationFrame(animate);
-    // render the container
-    renderer.render(stage);
-}
-}
-
-function requestUpdate(){
- var req = new XMLHttpRequest();
-	req.onload = function(response){updateHunterPositions(response)};
-	req.withCredentials = true;
-	req.open("get", "http://127.0.0.1:8080/status", true);
-	
-	req.send();
-}
-
-function createFakeUpdate(){
-var req = new XMLHttpRequest();
-req.onload = function(){}
-req.withCredentials = true;
-req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
-req.open("post","http://127.0.0.1:8080/update",true);
-req.send(JSON.stringify({"lat":0,"long":0,"pid":0,"heading":0,"obstruction":[0,2,6,18,54],"beacon":[]}));
-}
-
-function drawBackground(){
-obstructionGraphics.lineStyle(1);
-obstructionGraphics.beginFill(0x7CB36F, 0.5);
-obstructionGraphics.drawCircle(screen.availWidth/2,screen.availHeight/2,10);
-obstructionGraphics.endFill();
-}
-
-function updateObstructionPositions(){
-
-}
-
-function updateHunterPositions(status){
-	console.log("updating position ",status);
-}
-
-
-</script>
-
+<style>
+@import url("bucket.css");
+@import url(scripts/Cesium/Widgets/widgets.css);
+@import url(scripts/Cesium/Widgets/lighter.css);
+</style>
+<script data-main="scripts/main" src="scripts/require.js"></script>
 </head>
-<body onload="start()">
+<body style="overflow:hidden;">
+<div id="cesiumContainer" class="fullSize"></div>
+
 
 </body>
 </html>
