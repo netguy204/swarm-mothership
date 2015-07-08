@@ -5,9 +5,9 @@
 #include <Arduino.h>
 
 GPSFSM::GPSFSM(Stream& gps, Stream* debug)
-: gps(gps), debug(debug), lastTime(0), updated_ll(false), updated_time(false), updated_status(false), updated_ecef(false),
-  valid_ll(false), valid_ecef(false), valid_enu_xf(false) {
-    
+  : gps(gps), debug(debug), lastTime(0), updated_ll(false), updated_time(false), updated_status(false), updated_ecef(false),
+    valid_ll(false), valid_ecef(false), valid_enu_xf(false) {
+
 }
 
 void GPSFSM::begin() {
@@ -18,7 +18,7 @@ void GPSFSM::begin() {
   enableMsg(STATUS_MSG, true);    // Enable status messages
   enableMsg(SOL_MSG, true);       // Enable soluton messages
   enableMsg(DOP_MSG, true);       // Enable DOP messages
-  enableMsg(DGPS_MSG, true);     // Disable DGPS messages      
+  enableMsg(DGPS_MSG, true);     // Disable DGPS messages
 }
 
 void GPSFSM::ackLatLon() {
@@ -87,7 +87,7 @@ void GPSFSM::update() {
         idx = 0;
         state++;
         if (length > MAX_LENGTH)
-          state= 0;
+          state = 0;
         break;
       case 6:    // wait for <length> payload uint8_ts
         data[idx++] = cc;
@@ -111,22 +111,27 @@ void GPSFSM::update() {
               if (lastTime != ULONG(0)) {
                 lastTime = ULONG(0);
                 lastTimeMillis = millis();
-                
+
                 updated_time = true;
-                
-                if(debug) {
+
+                if (debug) {
+#if(VERBOSE_DBG)
                   debug->print(F("\nTime: "));
                   debug->println(ULONG(0), DEC);
+#endif
                 }
               }
+#if(VERBOSE_DBG)
               debug->print("NAV-");
+#endif
               switch (id) {
                 case 0x02:  // NAV-POSLLH
                   lon = LONG(4);
                   lat = LONG(8);
                   updated_ll = true;
-                  if(status >= 2) valid_ll = true;
-                  if(debug) {
+                  if (status >= 2) valid_ll = true;
+                  if (debug) {
+#if(VERBOSE_DBG)
                     debug->print(F("POSLLH: lon = "));
                     printLatLon(lon);
                     debug->print(F(", lat = "));
@@ -136,22 +141,26 @@ void GPSFSM::update() {
                     debug->print(F(" mm, hAcc = "));
                     debug->print(ULONG(20), DEC);
                     debug->print(F(" mm"));
+#endif
                   }
-                 break;
+                  break;
                 case 0x03:  // NAV-STATUS
                   status = data[4];
                   updated_status = true;
-                  
-                  if(debug) {
+
+                  if (debug) {
+#if(VERBOSE_DBG)
                     debug->print(F("STATUS: gpsFix = "));
                     debug->print(status, DEC);
                     if (data[5] & 2) {
                       debug->print(F(", dgpsFix"));
                     }
+#endif
                   }
                   break;
                 case 0x04:  // NAV-DOP
-                  if(debug) {
+                  if (debug) {
+#if(VERBOSE_DBG)
                     debug->print(F("DOP:    gDOP = "));
                     debug->print((float) UINT(4) / 100, 2);
                     debug->print(F(", tDOP = "));
@@ -160,10 +169,11 @@ void GPSFSM::update() {
                     debug->print((float) UINT(10) / 100, 2);
                     debug->print(F(", hDOP = "));
                     debug->print((float) UINT(12) / 100, 2);
+#endif
                   }
                   break;
                 case 0x06:  // NAV-SOL
-                  if(debug) {
+                  if (debug) {
                     ecef_pos.x = LONG(12);
                     ecef_pos.y = LONG(16);
                     ecef_pos.z = LONG(20);
@@ -171,7 +181,8 @@ void GPSFSM::update() {
                     ecef_vel.y = LONG(32);
                     ecef_vel.z = LONG(36);
                     updated_ecef = true;
-                    if(status >= 2) valid_ecef = true;
+                    if (status >= 2) valid_ecef = true;
+#if(VERBOSE_DBG)
                     debug->print(F("SOL:    week = "));
                     debug->print(UINT(8), DEC);
                     debug->print(F(", gpsFix = "));
@@ -196,10 +207,12 @@ void GPSFSM::update() {
                     debug->print(ULONG(24), DEC);
                     debug->print(F(" cm, numSV = "));
                     debug->print(data[47], DEC);
+#endif
                   }
                   break;
                 case 0x12:  // NAV-VELNED
-                  if(debug) {
+                  if (debug) {
+#if(VERBOSE_DBG)
                     debug->print(F("VELNED: gSpeed = "));
                     debug->print(ULONG(20), DEC);
                     debug->print(F(" cm/sec, sAcc = "));
@@ -209,34 +222,38 @@ void GPSFSM::update() {
                     debug->print(F(" deg, cAcc = "));
                     debug->print((float) LONG(32) / 100000, 2);
                     debug->print(F(" deg"));
+#endif
                   }
                   break;
                 case 0x31:  // NAV-DGPS
-                  if(debug) {
+                  if (debug) {
+#if(VERBOSE_DBG)
                     debug->print(F("DGPS:   age = "));
                     debug->print(LONG(4), DEC);
                     debug->print(F(", baseId = "));
                     debug->print(INT(8), DEC);
                     debug->print(F(", numCh = "));
                     debug->print(INT(12), DEC);
+#endif
                   }
                   break;
                 case 0x32:  // NAV-SBAS
-                  if(debug) {
-                  debug->print(F("SBAS:   geo = "));
-                  switch (data[4]) {
-                    case 133:
-                      debug->print(F("Inmarsat 4F3"));
-                      break;
-                    case 135:
-                      debug->print(F("Galaxy 15"));
-                      break;
-                    case 138:
-                      debug->print(F("Anik F1R"));
-                      break;
-                    default:
-                      debug->print(data[4], DEC);
-                      break;
+                  if (debug) {
+#if(VERBOSE_DBG)                    
+                    debug->print(F("SBAS:   geo = "));
+                    switch (data[4]) {
+                      case 133:
+                        debug->print(F("Inmarsat 4F3"));
+                        break;
+                      case 135:
+                        debug->print(F("Galaxy 15"));
+                        break;
+                      case 138:
+                        debug->print(F("Anik F1R"));
+                        break;
+                      default:
+                        debug->print(data[4], DEC);
+                        break;
                     }
                     debug->print(F(", mode = "));
                     switch (data[5]) {
@@ -253,7 +270,7 @@ void GPSFSM::update() {
                         debug->print(data[5], DEC);
                     }
                     debug->print(F(", sys = "));
-                     switch (data[6]) {
+                    switch (data[6]) {
                       case 0:
                         debug->print(F("WAAS"));
                         break;
@@ -263,34 +280,49 @@ void GPSFSM::update() {
                       case 2:
                         debug->print(F("MSAS"));
                         break;
-                       case 16:
+                      case 16:
                         debug->print(F("GPS"));
                         break;
-                     default:
+                      default:
                         debug->print(data[6], DEC);
                     }
+#endif
                   }
                   break;
                 default:
-                  if(debug) printHex(id);
+                  if (debug)
+                  {
+#if(VERBOSE_DBG)
+                    printHex(id);
+#endif
+                  }
               }
-              if(debug) debug->println();
+#if(VERBOSE_DBG)
+              if (debug) debug->println();
+#endif
               break;
             case 0x05:      // ACK-
-              if(debug) debug->print(F("ACK-"));
-              switch (id) {
-                case 0x00:  // ACK-NAK
-                if(debug)debug->print(F("NAK: "));
-                break;
-                case 0x01:  // ACK-ACK
-                if(debug) debug->print(F("ACK: "));
-                break;
+              if (debug)
+              {
+#if(VERBOSE_DBG)
+                debug->print(F("ACK-"));
+                switch (id) {
+                  case 0x00:  // ACK-NAK
+                    debug->print(F("NAK: "));
+                    break;
+                  case 0x01:  // ACK-ACK
+                    debug->print(F("ACK: "));
+                    break;
+                }
+#endif
               }
-              if(debug) {
+              if (debug) {
+#if(VERBOSE_DBG)
                 printHex(data[0]);
                 debug->print(" ");
                 printHex(data[1]);
                 debug->println();
+#endif
               }
               break;
           }
@@ -299,20 +331,22 @@ void GPSFSM::update() {
         break;
     }
   }
-  
+
   // can we produce a ENU transform?
-  if(!valid_enu_xf && valid_ll && valid_ecef) {
+  if (!valid_enu_xf && valid_ll && valid_ecef) {
     // declare our current position to be the origin
     origin = Vector<int32_t>(ecef_pos.x, ecef_pos.y, ecef_pos.z);
-    
+
     // https://en.wikipedia.org/wiki/Geodetic_datum#From_ECEF_to_ENU
     float lambda = (lon * 1e-7) * PI / 180.0;
     float phi = (lat * 1e-7) * PI / 180.0;
+#if VERBOSE_DBG
     Serial.print("lambda = ");
     Serial.print(lambda);
     Serial.print(", phi = ");
     Serial.println(phi);
-    
+#endif
+
     float temp[] = {
       -sin(lambda),  -sin(phi) * cos(lambda),   cos(phi) * cos(lambda),
       cos(lambda),   -sin(phi) * sin(lambda),   cos(phi) * sin(lambda),
@@ -320,27 +354,27 @@ void GPSFSM::update() {
     };
     memcpy(enuXF, temp, sizeof(temp));
     Matrix.Print(enuXF, 3, 3, "enuXF");
-    
-    valid_enu_xf = true; 
+
+    valid_enu_xf = true;
   }
 }
 
 bool GPSFSM::toENU(Vector<int32_t>& enu, const Vector<int32_t>& point) const {
-  if(!valid_enu_xf) return false;
-  
+  if (!valid_enu_xf) return false;
+
   Vector<int32_t> v = point - origin;
-  
+
   float enuf[3];
   float vf[3] = {v.x, v.y, v.z};
   Matrix.Multiply(enuXF, vf, 3, 3, 1, enuf);
   enu = Vector<int32_t>(enuf[0], enuf[1], enuf[2]);
-  
+
   return true;
 }
 
-   // Convert 1e-7 value packed into long into decimal format
+// Convert 1e-7 value packed into long into decimal format
 void GPSFSM::printLatLon (long val) {
-  debug->print(val/10000000.0f);
+  debug->print(val / 10000000.0f);
   /*
   char buffer[14];
   PString str(buffer, sizeof(buffer));

@@ -9,6 +9,15 @@
 
 #include <Arduino.h>
 
+#define PROFILING
+
+
+// for dialing back the flood of Serial.print() messages
+#define VERBOSE_DBG  0
+
+// how many degrees of accuracy for magnetometer readings
+#define HEADING_PRECISION  15
+
 
 template<typename T>
 class Vector {
