@@ -100,7 +100,7 @@ app.use("/commands", function(req, res, next) {
     var command = req.body;
     if(req.method == "GET") {
         // GET the next thing out of the command queue
-        var pid = req.query.pid || undefined;
+        var pid = req.query.pid;
         var max = req.query.max || 1;
         var all = req.query.all || false;
 
@@ -109,7 +109,7 @@ app.use("/commands", function(req, res, next) {
             result = result.filter(function(c) { return c.complete != true; });
         }
 
-        if(pid) {
+        if(pid !== undefined) {
             result = result.filter(function(c) {
                 return c.pid == pid;
             });
@@ -119,7 +119,6 @@ app.use("/commands", function(req, res, next) {
             result = result.slice(0, max);
         }
 
-        console.log(req);
         console.log(result);
 
         res.end(JSON.stringify(result));
@@ -135,8 +134,8 @@ app.use("/commands", function(req, res, next) {
         next();
     } else if(req.method == "PUT") {
         // PUT an update into a particular slot in the command queue
-        var cid = command.cid || undefined;
-        if(cid == undefined) {
+        var cid = command.cid;
+        if(cid === undefined) {
             console.log("PUT command with no CID");
             res.end(JSON.stringify({success: false,
                                     message: "PUT command with no CID"}));
@@ -146,6 +145,8 @@ app.use("/commands", function(req, res, next) {
                 if(commands[idx].cid == cid) {
                     commands[idx].complete = command.complete;
                     res.end(JSON.stringify({success: true}));
+                    console.log("PUT SUCCESS");
+                    console.log(command);
                     return next();
                 }
             }
