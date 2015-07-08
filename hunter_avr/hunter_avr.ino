@@ -17,7 +17,7 @@
 #include "common.h"
 #include "swarm_config.h"
 
-ProtocolFSM pfsm(Serial1, "N3FQT2", "Routerpassword1", "raspberrypi", 8080);
+ProtocolFSM pfsm(Serial1, "NETGEAR05", "rusticboat531", "192.168.168.2", 8080);
 GPSFSM gpsfsm(Serial3, &Serial);
 
 TracksFSM tfsm;
