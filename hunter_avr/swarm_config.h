@@ -23,7 +23,7 @@
 /**
   * Who is this in the swarm?
   */
-#define SWARM_ID 100
+#define SWARM_ID 101
 
 #endif
 
