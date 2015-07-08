@@ -32,14 +32,16 @@ define("MothershipControl",[],function(){
 		req.onload = function(response){updateHunterPositions(response)};
 		req.withCredentials = true;
 		req.open("POST", "http://localhost:8080/commands", true);
+		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 	    command = {
+			pid: 0,
 			left: arrowsDown.left,
 			right:arrowsDown.right,
 			up:arrowsDown.up,
 			down:arrowsDown.down,
 			duration: 0.25
 		};
-		req.send(command);
+		req.send(JSON.stringify(command));
 		}
 	};
 

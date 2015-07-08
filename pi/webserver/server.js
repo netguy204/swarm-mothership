@@ -42,7 +42,7 @@ app.use(function(req, res, next) {
     req.query = querystring.parse(req._parsedUrl.query);
     next();
 });
-console.log("Hosting " + __dirname + "/public statically");
+
 app.use(serveStatic(__dirname + "/public/"));
 
 app.use("/status", function(req, res, next) {
@@ -141,6 +141,7 @@ app.use("/commands", function(req, res, next) {
                                     message: "PUT command with no CID"}));
             next();
         } else {
+			console.log("setting task " + cid + " to complete");
             for(var idx in commands) {
                 if(commands[idx].cid == cid) {
                     commands[idx].complete = command.complete;
