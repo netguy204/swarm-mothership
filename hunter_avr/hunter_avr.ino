@@ -17,6 +17,8 @@
 #include "common.h"
 #include "swarm_config.h"
 
+
+
 ProtocolFSM pfsm(Serial1, "NETGEAR05", "rusticboat531", "192.168.168.2", 8080);
 GPSFSM gpsfsm(Serial3, &Serial);
 
@@ -48,6 +50,7 @@ class NorthFindingFred {
   
   public:
   double p_setPoint, p_input, p_output;
+  // PID values (2, 5, 1) are probably good... may need to investigate I (integral) term
   NorthFindingFred()
   : state(STARTUP), pid(&p_input, &p_output, &p_setPoint, 2, 5, 1, PID::DIRECT) {
   }
@@ -64,7 +67,7 @@ class NorthFindingFred {
     
     if(state == SEARCHING || state == HOLDING) {
       if(mfsm.updated_data) {
-        p_input = mfsm.filteredHeading();
+        p_input = mfsm.heading();
         double error = p_input - p_setPoint;
         if(error > 180) {
           p_input -= 360;
@@ -72,18 +75,20 @@ class NorthFindingFred {
           p_input += 360;
         }
         
-        if(abs(p_input - p_setPoint) < 5) {
+        if(abs(p_input - p_setPoint) < HEADING_PRECISION) {
           pid.SetMode(PID::MANUAL);
           tfsm.write(0, 0);
           state = HOLDING;
         } else {
           //Serial.println(p_output);
           
-          
+          // proportional integral derivative
           pid.SetMode(PID::AUTOMATIC);
           pid.Compute();
           int16_t output = p_output;
-          tfsm.write(-output, output);
+          //Serial.print("output:  ");
+          //Serial.println(output);
+          tfsm.write(output, -output);
           state = SEARCHING;
         }
       }        
@@ -137,6 +142,7 @@ class MagnetometerCalibration {
     // get measurements
     if(state >= STOPPED && state <= TURN_LEFT) {
       if(mfsm.updated_data) {
+#if(VERBOSE_DBG)
         Serial.print(nmeasurements);
         Serial.print(",");
         Serial.print(state);
@@ -146,6 +152,7 @@ class MagnetometerCalibration {
         Serial.print(mfsm.y);
         Serial.print(",");
         Serial.println(mfsm.z);
+#endif
         mfsm.ackData();
         nmeasurements++;
         
@@ -197,9 +204,11 @@ void loop() {
   gpsfsm.ackECEF();
  
   if(old_state != pfsm.state) {
+#if(1 || VERBOSE_DBG)
     Serial.print(ProtocolFSM::StateStr[old_state]);
     Serial.print(" => ");
     Serial.println(ProtocolFSM::StateStr[pfsm.state]);
+#endif
   }
   
   // if we have a command and that command is SET_HEADING then
