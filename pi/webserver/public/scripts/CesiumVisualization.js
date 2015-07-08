@@ -1,10 +1,11 @@
 define("CesiumVisualization", ["Cesium/Cesium"], function (Cesium) {
 
 	var hunterEntities = [];
-
+	var obstructions = [];
 	var addHunter = function(pid,location){
+	console.log("adding hunter", location);
 	hunterEntities[pid] = viewer.entities.add({
-					position : Cesium.Cartesian3.fromDegrees(location.longitude, location.latitude),
+					position : Cesium.Cartesian3.fromDegrees(location.latitude,location.longitude),
 					point : {
 						pixelSize : 10,
 						color : Cesium.Color.BLUE
@@ -26,7 +27,11 @@ define("CesiumVisualization", ["Cesium/Cesium"], function (Cesium) {
 				addHunter(pid,location);
 				return;
 			}
-			hunterEntities[pid].position = Cesium.Cartesian3.fromDegrees(location.longitude, location.latitude);
+			hunterEntities[pid].position = Cesium.Cartesian3.fromDegrees(location.latitude,location.longitude);
+		},
+		
+		addObstruction: function(location){
+		
 		}
 
 	};

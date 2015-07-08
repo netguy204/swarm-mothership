@@ -94,6 +94,11 @@ app.use("/history", function(req, res, next) {
     next();
 });
 
+app.use("/killQueue",function(req,res,next){
+commands = [];
+next();
+});
+
 
 app.use("/commands", function(req, res, next) {
     res.setHeader('Content-Type', 'application/json');
