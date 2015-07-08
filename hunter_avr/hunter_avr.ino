@@ -202,6 +202,8 @@ void loop() {
     Serial.println(ProtocolFSM::StateStr[pfsm.state]);
   }
   
+  // if we have a command and that command is SET_HEADING then
+  // adjust the setpoint for north finding fred
   if(pfsm.command_valid && !pfsm.command_complete) {
     if(pfsm.command.command == DriveCommand::SET_HEADING) {
       nff.p_setPoint = pfsm.command.payload.heading.heading;
