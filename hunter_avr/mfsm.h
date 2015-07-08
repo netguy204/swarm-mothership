@@ -60,7 +60,7 @@ class MagFSM {
   long pendingDelay();
 
   bool delayComplete();
-  
+
   void update();
   
   double heading();

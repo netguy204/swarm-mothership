@@ -22,8 +22,13 @@
   m(CONNECTING_REST),   \
                         \
   m(IDLE),              \
-  m(FETCH_TASK),        \
-  m(ACK_TASK),          \
+                        \
+  m(FETCH_COMMAND),     \
+  m(AWAITING_COMMAND),  \
+                        \
+  m(ACK_COMMAND),       \
+  m(AWAITING_ACK),      \
+                        \
   m(SENDING_STATUS),    \
   m(STATE_MAX)
 
@@ -45,6 +50,7 @@ class ProtocolFSM {
   unsigned long delay_end;
   unsigned long ready_check;
   unsigned long reset_time;
+  unsigned long command_check;
   
   public:
   
@@ -53,9 +59,12 @@ class ProtocolFSM {
   CREST rest;
   ProtocolState state;
   SensorStatus status;
+  DriveCommand command;
   
   uint8_t wifi_connected : 1;
   uint8_t status_pending : 1;
+  uint8_t command_valid    : 1;
+  uint8_t command_complete : 1;
   
   ProtocolFSM(Stream& serial, const char* ssid, const char* password, const char* server, uint16_t port);
   
@@ -69,6 +78,8 @@ class ProtocolFSM {
   
   bool isResetTime();
   
+  bool commandCheck();
+    
   void resetResetTime();
   
   void resetReadyCheck();
