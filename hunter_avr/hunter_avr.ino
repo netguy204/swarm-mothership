@@ -34,6 +34,7 @@ void setup() {
   Serial.begin(115200);
   
   // dump any crash data we're holding onto
+  Serial.println("READY");
   ApplicationMonitor.Dump(Serial);
   ApplicationMonitor.EnableWatchdog(Watchdog::CApplicationMonitor::Timeout_4s);
   
@@ -44,136 +45,132 @@ void setup() {
   gpsfsm.begin();
 }
 
-class NorthFindingFred {
+class CommandExecutor {  
+  // (p)roportional (i)ntegral (d)erivative
+  PID hdgPid;
+
+  public:
+  
   enum {
     STARTUP,
-    SEARCHING,
-    HOLDING
+    IDLE,
+    COMMAND_COMPLETE,
+    COMMAND_FAILED,
+    START_SET_HEADING,
+    RUNNING_SET_HEADING,
+    START_DRIVE,
+    RUNNING_DRIVE,
+    MAX
   };
   
-  PID pid;
   uint8_t state;
+  double hdgSetPoint, hdgInput, hdgOutput;
+  unsigned long delay_end;
+  unsigned long command_timeout;
+  uint8_t drive_speed;
   
-  public:
-  double p_setPoint, p_input, p_output;
+  void setDelay(long ms) {
+    delay_end = millis() + ms;
+  }
+  
+  bool delayExpired() {
+    return millis() >= delay_end;
+  }
+  
   // PID values (2, 5, 1) are probably good... may need to investigate I (integral) term
-  NorthFindingFred()
-  : state(STARTUP), pid(&p_input, &p_output, &p_setPoint, 2, 5, 1, PID::DIRECT) {
+  CommandExecutor()
+  : hdgPid(&hdgInput, &hdgOutput, &hdgSetPoint, 2, 5, 1, PID::DIRECT), delay_end(0), command_timeout(5000) {
+    
+    hdgInput = 0;
+    hdgSetPoint = 0;    
   }
   
   void update(MagFSM& mfsm, TracksFSM& tfsm) {
-    if(state == STARTUP) {
-      p_input = 0;
-      p_setPoint = 0;
-      pid.SetOutputLimits(-255, 255);
-      pid.SetMode(PID::AUTOMATIC);
-      pid.SetSampleTime(200);      
-      state = SEARCHING;
+    if(state == STARTUP) {    
+      state = IDLE;
     }
     
-    if(state == SEARCHING || state == HOLDING) {
+    if(state == START_SET_HEADING || state == START_DRIVE) {
+      // configure the controller to maintain heading
+      hdgPid.SetOutputLimits(-255, 255);
+      hdgPid.SetMode(PID::AUTOMATIC);
+      hdgPid.SetSampleTime(200);
+    }
+    
+    if(state == RUNNING_SET_HEADING || state == RUNNING_DRIVE) {
+      // update the controller to create a heading correction signal
       if(mfsm.updated_data) {
-        p_input = mfsm.heading();
-        double error = p_input - p_setPoint;
+        hdgInput = mfsm.heading();
+        // handle angle wraparound
+        double error = hdgInput - hdgSetPoint;
         if(error > 180) {
-          p_input -= 360;
+          hdgInput -= 360;
         } else if(error < -180) {
-          p_input += 360;
+          hdgInput += 360;
         }
         
-        if(abs(p_input - p_setPoint) < HEADING_PRECISION) {
-          pid.SetMode(PID::MANUAL);
-          tfsm.write(0, 0);
-          state = HOLDING;
-        } else {
-          //Serial.println(p_output);
-          
-          // proportional integral derivative
-          pid.SetMode(PID::AUTOMATIC);
-          pid.Compute();
-          int16_t output = p_output;
-          //Serial.print("output:  ");
-          //Serial.println(output);
-          tfsm.write(output, -output);
-          state = SEARCHING;
-        }
-      }        
-    }
-  }
-};
-
-
-class MagnetometerCalibration {
-  enum {
-    STARTUP,
-    STOPPED,
-    FORWARD,
-    REVERSE,
-    TURN_RIGHT,
-    TURN_LEFT,
-    MAX,
-    HOLD
-  };
-  
-  uint8_t state;
-  uint8_t nmeasurements;
-  
-  public:
-  MagnetometerCalibration()
-  : state(STARTUP) {
-  }
-  
-  void update(MagFSM& mfsm, TracksFSM& tfsm) {
-    if(state == STARTUP) {
-      nmeasurements = 0;
-      Serial.println("N,Test,x,y,z");
-      state = STOPPED;
+        hdgPid.Compute();
+      }
     }
     
-    // initialization
-    if(nmeasurements == 0) {
-      if(state == STOPPED) {
+    if(state == START_SET_HEADING) {
+      Serial.println("START_SET_HEADING");
+      setDelay(command_timeout);      
+      state = RUNNING_SET_HEADING;
+    }
+    
+    if(state == RUNNING_SET_HEADING) { 
+      if(abs(hdgInput - hdgSetPoint) < HEADING_PRECISION) {
+        Serial.println("finished SET_HEADING");
+        hdgPid.SetMode(PID::MANUAL);
         tfsm.write(0, 0);
-      } else if(state == FORWARD) {
-        tfsm.write(255, 255);
-      } else if(state == REVERSE) {
-        tfsm.write(-255, -255);
-      } else if(state == TURN_RIGHT) {
-        tfsm.write(-255, 255);
-      } else if(state == TURN_LEFT) {
-        tfsm.write(255, -255);
-      }
+        state = COMMAND_COMPLETE;
+      } else {
+        int16_t output = hdgOutput;
+        tfsm.write(output, -output);
+      }      
+
+      if(delayExpired()) {
+        Serial.println("failed SET_HEADING");
+        tfsm.write(0, 0);
+        state = COMMAND_FAILED;
+      }      
     }
     
-    // get measurements
-    if(state >= STOPPED && state <= TURN_LEFT) {
-      if(mfsm.updated_data) {
-        Serial.print(nmeasurements);
-        Serial.print(",");
-        Serial.print(state);
-        Serial.print(",");
-        Serial.print(mfsm.x);
-        Serial.print(",");
-        Serial.print(mfsm.y);
-        Serial.print(",");
-        Serial.println(mfsm.z);
-
-        mfsm.ackData();
-        nmeasurements++;
+    if(state == START_DRIVE) {
+      Serial.println("START_DRIVE");
+      setDelay(command_timeout);
+      state = RUNNING_DRIVE;      
+    }
+    
+    if(state == RUNNING_DRIVE) {
+      if(delayExpired()) {
+        tfsm.write(0, 0);
+        state = COMMAND_COMPLETE;
+      } else {
+        // drive speed = (t1 + t2) / 2
+        // turn rate = (t1 - t2)
+        // t1 = 1/2 * (2*speed + turn)
+        // t2 = 1/2 * (2*speed - turn)
+        double t1 = 0.5 * (2.0 * drive_speed + hdgOutput);
+        double t2 = 0.5 * (2.0 * drive_speed - hdgOutput);
         
-        // cycle to next state
-        if(nmeasurements == 255) {
-          state = state + 1;
-          if(state == MAX) state = STOPPED;
-          nmeasurements = 0;
+        // clamp
+        if(abs(t1) > 255 || abs(t2) > 255) {
+          double mx = max(abs(t1), abs(t2));
+          t1 = (t1 / mx) * 255;
+          t2 = (t2 / mx) * 255;
         }
+        
+        tfsm.write((int16_t)t1, (int16_t)t2);
       }
     }
   }
 };
 
-NorthFindingFred nff;
-MagnetometerCalibration mcal;
+class 
+
+CommandExecutor ce;
 SensorStatus ss;
 
 void loop() {
@@ -183,13 +180,37 @@ void loop() {
   
   pf.start();
   ProtocolFSM::ProtocolState old_state = pfsm.state; 
+  
   pfsm.update(); pf.mark(1);
   gpsfsm.update(); pf.mark(2);
   mfsm.update(); pf.mark(3);
   tfsm.update(); pf.mark(4);
 
+  ce.update(mfsm, tfsm);
+  
+  // if the executor has completed the command, ack
+  if(ce.state == CommandExecutor::COMMAND_COMPLETE || ce.state == CommandExecutor::COMMAND_FAILED) {
+    ce.state = CommandExecutor::IDLE;
+  }
+  
+  // if we have a new command available and we're idle, push it to the executor
+  if(ce.state == CommandExecutor::IDLE && pfsm.command_valid && !pfsm.command_complete) {
+    // start setting heading
+    if(pfsm.command.command == DriveCommand::SET_HEADING) {
+      ce.hdgSetPoint = pfsm.command.payload.heading.heading;
+      ce.command_timeout = 5000; // implicit 5 second timeout on heading changes
+      ce.state = CommandExecutor::START_SET_HEADING;
+    } else if(pfsm.command.command == DriveCommand::DRIVE) {
+      ce.hdgSetPoint = pfsm.command.payload.drive.heading;
+      ce.drive_speed = pfsm.command.payload.drive.speed;
+      ce.command_timeout = pfsm.command.duration;
+      ce.state = CommandExecutor::START_DRIVE;
+    }
+    // ack optimistically so protocol can fetch the next command
+    pfsm.command_complete = true;
+  }
+  
 
-  nff.update(mfsm, tfsm);
   //mcal.update(mfsm, tfsm);
   
   if(pfsm.state == ProtocolFSM::IDLE && (gpsfsm.updated_ll || mfsm.updated_data)) {
@@ -218,15 +239,6 @@ void loop() {
     Serial.print(" => ");
     Serial.println(ProtocolFSM::StateStr[pfsm.state]);
 #endif
-  }
-  
-  // if we have a command and that command is SET_HEADING then
-  // adjust the setpoint for north finding fred
-  if(pfsm.command_valid && !pfsm.command_complete) {
-    if(pfsm.command.command == DriveCommand::SET_HEADING) {
-      nff.p_setPoint = pfsm.command.payload.heading.heading;
-    }
-    pfsm.command_complete = true;
   }
   
   pf.mark(5);
