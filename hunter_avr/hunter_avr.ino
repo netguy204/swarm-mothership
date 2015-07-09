@@ -16,10 +16,11 @@
 
 #include "common.h"
 #include "swarm_config.h"
+#include "ApplicationMonitor.h"
 
+Watchdog::CApplicationMonitor ApplicationMonitor;
 
-
-ProtocolFSM pfsm(Serial1, "NETGEAR05", "rusticboat531", "192.168.168.2", 8080);
+ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
 GPSFSM gpsfsm(Serial3, &Serial);
 
 TracksFSM tfsm;
@@ -31,6 +32,11 @@ Profiler<5> pf;
 
 void setup() {
   Serial.begin(115200);
+  
+  // dump any crash data we're holding onto
+  ApplicationMonitor.Dump(Serial);
+  ApplicationMonitor.EnableWatchdog(Watchdog::CApplicationMonitor::Timeout_4s);
+  
   Serial1.begin(19200);
   Serial3.begin(9600);
   Wire.begin();
@@ -142,7 +148,6 @@ class MagnetometerCalibration {
     // get measurements
     if(state >= STOPPED && state <= TURN_LEFT) {
       if(mfsm.updated_data) {
-#if(VERBOSE_DBG)
         Serial.print(nmeasurements);
         Serial.print(",");
         Serial.print(state);
@@ -152,7 +157,7 @@ class MagnetometerCalibration {
         Serial.print(mfsm.y);
         Serial.print(",");
         Serial.println(mfsm.z);
-#endif
+
         mfsm.ackData();
         nmeasurements++;
         
@@ -172,6 +177,10 @@ MagnetometerCalibration mcal;
 SensorStatus ss;
 
 void loop() {
+  ApplicationMonitor.IAmAlive();
+  // remember most of our protocol state if we crash
+  ApplicationMonitor.SetData(pfsm.state | (pfsm.wifi_connected << 8) | (pfsm.status_pending << 9) | (pfsm.command_valid << 10) | (pfsm.command_complete << 11));
+  
   pf.start();
   ProtocolFSM::ProtocolState old_state = pfsm.state; 
   pfsm.update(); pf.mark(1);
