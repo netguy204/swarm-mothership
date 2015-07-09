@@ -37,7 +37,6 @@ class SimpleCompensation : public MotorCompensation {
 };
 
 class MagFSM {
-    MotorCompensation& mc;
     unsigned long delay_end;
     double accumulator, hdg;
 
@@ -53,7 +52,7 @@ class MagFSM {
     uint8_t updated_data : 1;
     uint8_t first_measurement : 1;
 
-    MagFSM(uint8_t address, MotorCompensation& mc);
+    MagFSM(uint8_t address);
 
     void ackData();
 

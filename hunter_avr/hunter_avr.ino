@@ -24,9 +24,7 @@ ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
 GPSFSM gpsfsm(Serial3, &Serial);
 
 TracksFSM tfsm;
-// ComplexCompensation mc(MAG_FORWARD, MAG_REVERSE, MAG_RIGHT, MAG_LEFT, tfsm);
-SimpleCompensation mc(MAG_CENTER);
-MagFSM mfsm(0x1E, mc); // I2C 7bit address of HMC5883
+MagFSM mfsm(0x1E); // I2C 7bit address of HMC5883
 
 Profiler<5> pf;
 
@@ -35,6 +33,7 @@ void setup() {
   
   // dump any crash data we're holding onto
   Serial.println("READY");
+
   ApplicationMonitor.Dump(Serial);
   ApplicationMonitor.EnableWatchdog(Watchdog::CApplicationMonitor::Timeout_4s);
   

@@ -1,6 +1,25 @@
 #include "pfsm.h"
 #include "swarm_config.h"
 
+// will be overwritten with our actual swarm id at runtime
+char command_endpoint[] = "/commands?pid=000";
+
+void insertBase10(char* string, uint8_t value) {
+  char buf[3];
+  uint8_t idx = 0;
+  do {
+    buf[idx] = '0' + value % 10;
+    value /= 10;
+    idx++;
+  } while(value > 0);
+  
+  for(uint8_t ii = 0; ii < idx; ++ii) {
+    string[ii] = buf[idx - ii - 1];
+  }
+  
+  string[idx] = '\0';
+}
+
 const char* const ProtocolFSM::StateStr[STATE_MAX+1] = {
   STATES(MAKE_STRING)
 };
@@ -90,6 +109,10 @@ void ProtocolFSM::update() {
     digitalWrite(RESET_PIN, LOW);
     delay_end = millis() + 1000;
     state = POWER_ON_RESET;
+        
+    // correct our swarm id in the endpoint string
+    insertBase10(&command_endpoint[sizeof(command_endpoint) - 4], swarmID());
+    Serial.println(command_endpoint);
   }
   
   if(state == POWER_ON_RESET && delayComplete()) {
@@ -176,7 +199,7 @@ void ProtocolFSM::update() {
   }
 
   if(state == FETCH_COMMAND) {
-    rest.get("/commands?cid=" STRINGIFY(SWARM_ID));
+    rest.get(command_endpoint);
     
     // prepare for response
     rest.getResponse(NULL, 0, true);
@@ -239,12 +262,12 @@ void ProtocolFSM::update() {
     char buffer[128];
     
     JsonObject& obj = jsonBuffer.createObject();
-    obj["pid"] = SWARM_ID;
+    obj["pid"] = swarmID();
     obj["cid"] = command.cid;
     obj["complete"] = true;
     obj.printTo(buffer, sizeof(buffer));
     
-    rest.put("/commands", buffer);
+    rest.put(command_endpoint, buffer);
     
     // prepare for response
     rest.getResponse(NULL, 0, true);
