@@ -12,7 +12,7 @@ class SensorStatus {
     Vector<int16_t> magnetometer;
     uint8_t gps_fix_state;
 
-    float lat, lon, heading;
+    float lat, lon, heading, vbattery, vin;
 
     SensorStatus();
     void toJson(JsonObject& report);

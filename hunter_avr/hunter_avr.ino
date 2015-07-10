@@ -18,6 +18,34 @@
 #include "swarm_config.h"
 #include "ApplicationMonitor.h"
 
+#define VBATTERY A0
+
+long readVcc() {
+  // Read 1.1V reference against AVcc
+  // set the reference to Vcc and the measurement to the internal 1.1V reference
+  #if defined(__AVR_ATmega32U4__) || defined(__AVR_ATmega1280__) || defined(__AVR_ATmega2560__)
+    ADMUX = _BV(REFS0) | _BV(MUX4) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  #elif defined (__AVR_ATtiny24__) || defined(__AVR_ATtiny44__) || defined(__AVR_ATtiny84__)
+    ADMUX = _BV(MUX5) | _BV(MUX0);
+  #elif defined (__AVR_ATtiny25__) || defined(__AVR_ATtiny45__) || defined(__AVR_ATtiny85__)
+    ADMUX = _BV(MUX3) | _BV(MUX2);
+  #else
+    ADMUX = _BV(REFS0) | _BV(MUX3) | _BV(MUX2) | _BV(MUX1);
+  #endif  
+ 
+  delay(1); // Wait for Vref to settle
+  ADCSRA |= _BV(ADSC); // Start conversion
+  while (bit_is_set(ADCSRA,ADSC)); // measuring
+ 
+  uint8_t low  = ADCL; // must read ADCL first - it then locks ADCH  
+  uint8_t high = ADCH; // unlocks both
+ 
+  long result = (high<<8) | low;
+ 
+  result = 1125300L / result; // Calculate Vcc (in mV); 1125300 = 1.1*1023*1000
+  return result; // Vcc in millivolts
+}
+
 Watchdog::CApplicationMonitor ApplicationMonitor;
 
 ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
@@ -32,7 +60,7 @@ void setup() {
   Serial.begin(115200);
   
   // dump any crash data we're holding onto
-  Serial.println("READY");
+  Serial.println(F("READY"));
 
   ApplicationMonitor.Dump(Serial);
   ApplicationMonitor.EnableWatchdog(Watchdog::CApplicationMonitor::Timeout_4s);
@@ -42,6 +70,8 @@ void setup() {
   Wire.begin();
   
   gpsfsm.begin();
+  
+  pinMode(VBATTERY, INPUT);
 }
 
 class CommandExecutor {  
@@ -113,14 +143,14 @@ class CommandExecutor {
     }
     
     if(state == START_SET_HEADING) {
-      Serial.println("START_SET_HEADING");
+      Serial.println(F("START_SET_HEADING"));
       setDelay(command_timeout);      
       state = RUNNING_SET_HEADING;
     }
     
     if(state == RUNNING_SET_HEADING) { 
       if(abs(hdgInput - hdgSetPoint) < HEADING_PRECISION) {
-        Serial.println("finished SET_HEADING");
+        Serial.println(F("finished SET_HEADING"));
         hdgPid.SetMode(PID::MANUAL);
         tfsm.write(0, 0);
         state = COMMAND_COMPLETE;
@@ -130,14 +160,14 @@ class CommandExecutor {
       }      
 
       if(delayExpired()) {
-        Serial.println("failed SET_HEADING");
+        Serial.println(F("failed SET_HEADING"));
         tfsm.write(0, 0);
         state = COMMAND_FAILED;
       }      
     }
     
     if(state == START_DRIVE) {
-      Serial.println("START_DRIVE");
+      Serial.println(F("START_DRIVE"));
       setDelay(command_timeout);
       state = RUNNING_DRIVE;      
     }
@@ -224,6 +254,9 @@ void loop() {
     ss.lat = gpsfsm.lat;
     ss.lon = gpsfsm.lon;
     ss.gps_fix_state = gpsfsm.status;
+    ss.vbattery = (5.0 * analogRead(VBATTERY)) / 1023.0;
+    ss.vin = readVcc() / 1000.0;
+
     pfsm.sendStatus(ss);
   }
 
@@ -235,7 +268,7 @@ void loop() {
   if(old_state != pfsm.state) {
 #if(1 || VERBOSE_DBG)
     Serial.print(ProtocolFSM::StateStr[old_state]);
-    Serial.print(" => ");
+    Serial.print(F(" => "));
     Serial.println(ProtocolFSM::StateStr[pfsm.state]);
 #endif
   }

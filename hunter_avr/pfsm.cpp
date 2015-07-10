@@ -87,7 +87,7 @@ void ProtocolFSM::update() {
   }
   
   if(state > CONNECTING_WIFI && readyCheckTime()) {
-    Serial.println("PFSM: Checking readyness");
+    Serial.println(F("PFSM: Checking readyness"));
     resetReadyCheck();
     if(!esp.ready()) {
       state = ENABLE;
@@ -98,7 +98,7 @@ void ProtocolFSM::update() {
   if(state > CONNECTING_WIFI && isResetTime()) {
     // nothing conclusive has happened to convince us we still
     // have comms so it's time to reset
-    Serial.println("PFSM: Forcing reset");
+    Serial.println(F("PFSM: Forcing reset"));
     resetResetTime();
     state = STARTUP;
   }
@@ -188,12 +188,12 @@ void ProtocolFSM::update() {
     char buffer[128];
     int resp;
     if((resp = rest.getResponse(buffer, sizeof(buffer), false)) == HTTP_STATUS_OK) {
-      Serial.println("PFSM: Status delivered");
+      Serial.println(F("PFSM: Status delivered"));
       resetResetTime();
       resetReadyCheck();
       state = IDLE;
     } else if(delayComplete()) {
-      Serial.println("PFSM: Status timed out");
+      Serial.println(F("PFSM: Status timed out"));
       state = IDLE;
     }
   }
@@ -219,22 +219,20 @@ void ProtocolFSM::update() {
       // skip to the payload
       for(uint16_t ii = 0; ii < sizeof(buffer); ++ii) {
         if(buffer[ii] == '\n') {
-          Serial.print("found at ");
-          Serial.println(ii);
           ptr = &buffer[ii+1];
           break;
         }
       }
       JsonArray& root = jsonBuffer.parseArray(ptr);
       if(!root.success()) {
-        Serial.print("PFSM: Failed to parse ");
+        Serial.print(F("PFSM: Failed to parse "));
         Serial.println(ptr);
         command_check = millis() + 1000;
         state = IDLE;
       } else {
         if(root.size() == 0) {
           // nothing in our queue
-          Serial.println("No commands waiting");
+          Serial.println(F("No commands waiting"));
           command_check = millis() + 1000;
           state = IDLE;
         } else {
@@ -243,7 +241,7 @@ void ProtocolFSM::update() {
             command_complete = false;
             state = IDLE;
           } else {
-            Serial.print("PFSM: Message invalid ");
+            Serial.print(F("PFSM: Message invalid "));
             Serial.println(buffer);
             command_check = millis() + 1000;
             state = IDLE;
@@ -251,7 +249,7 @@ void ProtocolFSM::update() {
         }
       }
     } else if(delayComplete()) {
-      Serial.println("PFSM: Command request timed out");
+      Serial.println(F("PFSM: Command request timed out"));
       command_check = millis() + 1000;
       state = IDLE;
     } 
@@ -286,7 +284,7 @@ void ProtocolFSM::update() {
     } else if(delayComplete()) {
       // this is the one case we retry forever. It's important that the mothership know that
       // we did what we said we would do.
-      Serial.println("PFSM: Ack timed out");
+      Serial.println(F("PFSM: Ack timed out"));
       state = ACK_COMMAND;
     }
   }

@@ -32,6 +32,9 @@ void SensorStatus::toJson(JsonObject& report) {
   report["e"] = enu_cm.x;
   report["n"] = enu_cm.y;
   report["u"] = enu_cm.z;
+  
+  report["vbattery"] = vbattery;
+  report["vin"] = vin;
 }
 
 bool DriveCommand::fromJson(JsonObject& cmd) {
