@@ -9,6 +9,7 @@
 #include "systemtime.h"
 #include "upstream.h"
 
+#include "wsmsg.h"
 
 /**
  * Web service class for the PI side of the Upstream finite state machine.
@@ -37,10 +38,10 @@ class WebServiceFSM : public UpstreamFSM {
   Message pullQueuedCmd();
 
   virtual void update();
-  virtual bool send(const Message* message);
-  virtual bool acknowledgeAck();
-  virtual bool clearError();
-  virtual bool close();
+  virtual bool send(const Message* message) { fprintf(stderr, "SEND UNIMPLEMENTED\n"); return false; };
+  virtual bool acknowledgeAck() { fprintf(stderr, "ACK UNIMPLEMENTED\n"); return false; };
+  virtual bool clearError() { fprintf(stderr, "CLEAR UNIMPLEMENTED\n"); return false; };
+  virtual bool close() { fprintf(stderr, "CLOSE UNIMPLEMENTED\n"); return false; };
 };
 
 #endif
