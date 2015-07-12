@@ -78,7 +78,8 @@ JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<200>& jsonBuffer, const ch
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
-    return jsonBuffer.parseObject("!!"); // so obj.success will be false
+    char failed[3] = "!!";
+    return jsonBuffer.parseObject(failed); // so obj.success will be false
    }
   fprintf(stderr, "%s\n", cmdFromQueue);
   JsonObject& root = jsonBuffer.parseObject(cmdFromQueue);
