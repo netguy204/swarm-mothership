@@ -27,10 +27,9 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
-  WebServiceFSM wsfsm;
+  WebServiceFSM wsfsm{"http://localhost:8080/"};
 
   RealProtocolFSM pfsm;
-  wsfsm.init("http://localhost:8080/");
   pfsm.init(bus, dev);
 
   joystickInit();

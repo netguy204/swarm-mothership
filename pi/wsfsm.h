@@ -31,7 +31,10 @@ class WebServiceFSM : public UpstreamFSM {
  public:
 
   // TODO - update per cpp
-  WebServiceFSM(const char* endpoint);
+  WebServiceFSM();
+  WebServiceFSM(const char* endpoint) : WebServiceFSM() {
+    curl_easy_setopt(curl, CURLOPT_URL, endpoint);
+  };
   ~WebServiceFSM();
 
   void putCmdStatus(long cid, bool status);
