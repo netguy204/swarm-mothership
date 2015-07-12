@@ -20,6 +20,7 @@
   m(ACKING),                 \
   m(ACKING_FAILED),          \
   m(ACK_COMPLETE),           \
+  m(FETCH_CMD),              \
   m(STATE_MAX)
 
 #define UCREATE_ENUM(v) v
