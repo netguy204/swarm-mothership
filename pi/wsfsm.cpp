@@ -88,11 +88,11 @@ JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<200>& jsonBuffer, const ch
   }
 
 void WebServiceFSM::update() {
- 
-  if(state == UpstreamState:IDLE && !command_available && delayExpired()) {
+
+  if(state == UpstreamState::IDLE && !command_available && delayExpired()) {
     state = UpstreamState::FETCH_CMD;
   }
-  if(state == UpstreamState:IDLE && command_complete) {
+  if(state == UpstreamState::IDLE && command_completed) {
     state = UpstreamState::ACKING;
   }
 
@@ -106,19 +106,19 @@ void WebServiceFSM::update() {
       setDelay(READ_AGAIN_COOLDOWN_TIME); // which delay period to use?
     }
   }
-  if(state == UpstreamState:FETCH_CMD) {
+  if(state == UpstreamState::FETCH_CMD) {
     StaticJsonBuffer<200> jsonBuffer;
     JsonObject& obj = fetchJson(jsonBuffer, "http://localhost:8080/commands?pid=0");
     if (!obj.success()) {
-      setDelay(READ_AGAIN_COOLDOWN_TIME); 
+      setDelay(READ_AGAIN_COOLDOWN_TIME);
       state = UpstreamState::IDLE;
     } else {
       if (command.fromJson(obj)) {
         command_available = true;
-        command_complete = false;
+        command_completed = false;
         state = UpstreamState::IDLE;
       } else {
-        setDelay(READ_AGAIN_COOLDOWN_TIME); 
+        setDelay(READ_AGAIN_COOLDOWN_TIME);
         state = UpstreamState::IDLE;
       }
     }
