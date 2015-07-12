@@ -22,10 +22,9 @@ class WebServiceFSM : public UpstreamFSM {
   CURL *curl;
   CURLcode res;
   struct curl_slist *list;
-  WebServiceMsg command;
 
-  bool command_available;
-  bool command_completed;
+  bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root);
+  JsonObject& fetchJson(StaticJsonBuffer<200>& jsonBuffer, const char* endpoint);
 
 
  public:
@@ -36,6 +35,10 @@ class WebServiceFSM : public UpstreamFSM {
     curl_easy_setopt(curl, CURLOPT_URL, endpoint);
   };
   ~WebServiceFSM();
+
+  bool command_available;
+  bool command_completed;
+  WebServiceMsg command;
 
   void putCmdStatus(long cid, bool status);
   Message pullQueuedCmd();

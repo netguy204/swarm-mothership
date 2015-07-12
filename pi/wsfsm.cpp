@@ -11,7 +11,6 @@
 static char cmdFromQueue[256];
 
 WebServiceFSM::WebServiceFSM() {
-
   state = UpstreamState::DISCONNECTED;
   command_available = false;
   command_completed = false;
@@ -22,7 +21,6 @@ WebServiceFSM::WebServiceFSM() {
    // The current server requires the data uploaded as app/json type
   list = curl_slist_append(list, "Content-type: application/json");
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
-
 }
 
 WebServiceFSM::~WebServiceFSM() {
@@ -31,7 +29,7 @@ WebServiceFSM::~WebServiceFSM() {
   curl_global_cleanup();
 }
 
-// callback that curl uses to capture the read data instead of 
+// callback that curl uses to capture the read data instead of
 // printing it to the screen
 size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
   size_t n = 0;
@@ -45,7 +43,7 @@ size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
 
 // TODO: need to be able to do both post (for sensor status) and put (for acking commands)
 // hence  httpMethod
-bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
+bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
 
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
   // Add a byte at both the allocation and printing steps
@@ -71,12 +69,12 @@ bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root
   return true;
 }
 
-JsonObject& fetchJson(StaticJsonBuffer<200>& jsonBuffer, const char* endpoint)
+JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<200>& jsonBuffer, const char* endpoint)
 {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
   CURLcode res = curl_easy_perform(curl);
- 
+
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
