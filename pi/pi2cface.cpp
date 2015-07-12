@@ -1,3 +1,5 @@
+#include <algorithm>
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -68,21 +70,21 @@ int main(int argc, char** argv) {
           angle_value = 0;
         }
       } else if (wsfsm.command_available) {
-        speed_value = wfsfm.command.speed * 33.0;
-        angle_value = max(-30.0,min(30.0,wfsfm.command.angle*-1.0));
-        wfsm.command_complete = true;
+        speed_value = wsfsm.command.speed * 33.0;
+        angle_value = std::max(-30.0, std::min(30.0, wsfsm.command.angle*-1.0));
+        wsfsm.command_completed = true;
       }
       int8_t speed_ival = static_cast<int8_t>(speed_value);
       int8_t angle_ival = static_cast<int8_t>(angle_value);
       //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
-      
+
       Message msg;
       messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
-        
+
       pfsm.send(&msg);
 
     }
-  
+
 
     if(pfsm.state == SENDING_FAILED || pfsm.state == ACKING_FAILED) {
       // don't care for now
