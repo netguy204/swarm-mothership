@@ -1,3 +1,8 @@
+#ifndef WSMSG_H
+#define WSMSG_H
+
+#include <ArduinoJson.h>
+
 class WebServiceMsg {
 
  public:
@@ -11,3 +16,5 @@ class WebServiceMsg {
   void toJson(JsonObject& obj);
 
 };
+
+#endif // WSMSG_H

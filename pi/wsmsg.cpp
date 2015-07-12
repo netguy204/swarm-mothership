@@ -6,12 +6,14 @@
 #include <unistd.h>
 #include <string.h>
 
+#include "wsmsg.h"
+
 
 bool WebServiceMsg::fromJson(JsonObject& obj) {
 
   if (!obj.containsKey("pid") || !obj.containsKey("cid") || !obj.containsKey("speed") || !obj.containsKey("angle")) {
     return false;
-  } 
+  }
   pid = obj["pid"];
   cid = obj["cid"];
   speed = obj["speed"];
