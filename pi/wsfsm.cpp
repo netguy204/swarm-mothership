@@ -133,7 +133,8 @@ bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, J
   return true;
 }
 
-JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<200>& jsonBuffer, const char* endpoint)
+template <size_t T>
+JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char* endpoint)
 {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
   curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);

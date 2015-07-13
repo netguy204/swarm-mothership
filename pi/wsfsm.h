@@ -20,15 +20,6 @@
  */
 
 class WebServiceFSM : public UpstreamFSM {
- private:
-  CURL *curl;
-  CURLcode res;
-  struct curl_slist *list;
-
-  bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root);
-  JsonObject& fetchJson(StaticJsonBuffer<200>& jsonBuffer, const char* endpoint);
-
-
  public:
   static constexpr auto MAX_MSG_SIZE = 512;
 
@@ -55,6 +46,16 @@ class WebServiceFSM : public UpstreamFSM {
   virtual bool acknowledgeAck() { fprintf(stderr, "ACK UNIMPLEMENTED\n"); return false; };
   virtual bool clearError() { fprintf(stderr, "CLEAR UNIMPLEMENTED\n"); return false; };
   virtual bool close() { fprintf(stderr, "CLOSE UNIMPLEMENTED\n"); return false; };
+
+ private:
+  CURL *curl;
+  CURLcode res;
+  struct curl_slist *list;
+
+  bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root);
+
+  template <size_t T>
+  JsonObject& fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char* endpoint);
 };
 
 #endif
