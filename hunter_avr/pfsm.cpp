@@ -169,8 +169,8 @@ void ProtocolFSM::update() {
     state = SENDING_STATUS;
     status_pending = false;
     
-    StaticJsonBuffer<256> jsonBuffer;
-    char buffer[256];
+    StaticJsonBuffer<328> jsonBuffer;
+    char buffer[328];
     
     JsonObject& obj = jsonBuffer.createObject();
     status.toJson(obj);
@@ -208,8 +208,8 @@ void ProtocolFSM::update() {
   }
   
   if(state == AWAITING_COMMAND) {
-    StaticJsonBuffer<256> jsonBuffer;
-    char buffer[256];
+    StaticJsonBuffer<128> jsonBuffer;
+    char buffer[128];
     int resp;
     if((resp = rest.getResponse(buffer, sizeof(buffer), false)) == HTTP_STATUS_OK) {    
       // parse the response
