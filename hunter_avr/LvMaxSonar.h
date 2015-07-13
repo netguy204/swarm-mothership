@@ -27,19 +27,32 @@
 
 class LvMaxSonar
 {
-  private:
+  protected:
     int pwPin;  // pin for reading pulses (pulse of 147usec/inch)
     long lastMeasurementCm = -1;
-    long minRangeCm = DEFAULT_MINIMUM_RANGE_CM;
-    bool tooClose = false;
   
   public:
-    LvMaxSonar(int pinNumberIn,
-               int minRangeCmIn);
+    LvMaxSonar(int pinNumberIn);
 
-    long getDistanceCm();  // return the distance in cm, and set the "tooClose" flag as appropriate
+    long getDistanceCm();  // return the distance in cm
     long getLastMeasurementCm();
+};
+
+
+class LvMaxSonarCollisionAvoidance : public LvMaxSonar
+{
+  private:
+    long minRangeCm = DEFAULT_MINIMUM_RANGE_CM;
+    bool tooClose = false;
+
+  public:
+    LvMaxSonarCollisionAvoidance(int pinNumberIn,
+                                 int minRangeCmIn);
+    
+    long getDistanceCm();  // return the distance in cm, and set the "tooClose" flag as appropriate
+                             
     bool isTooClose();  // are we too close to some object?
+
 };
 
 #endif  /* _LV_MAX_SONAR_H_ */

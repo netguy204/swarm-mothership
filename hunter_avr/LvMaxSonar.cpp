@@ -14,10 +14,9 @@
 
 #include "LvMaxSonar.h"
 
-// constructor
-LvMaxSonar::LvMaxSonar(int pwPin,
-                       int minRangeCm)
-  : pwPin(pwPin), minRangeCm(minRangeCm)
+// LvMaxSonar constructor
+LvMaxSonar::LvMaxSonar(int pwPin)
+  : pwPin(pwPin)
 {
   // nothing more to do here, move along...
 }
@@ -36,10 +35,6 @@ long LvMaxSonar::getDistanceCm()
   cm = (pulseDuration/SCALE_USEC_PER_CM);
   
   lastMeasurementCm = cm;
-  if(cm <= minRangeCm)
-    tooClose = true;
-  else
-    tooClose = false;
     
   return cm;
 }
@@ -49,8 +44,30 @@ long LvMaxSonar::getLastMeasurementCm()
   return lastMeasurementCm;
 }
 
-bool LvMaxSonar::isTooClose()
+
+// LvMaxSonarCollisionAvoidance constructor
+LvMaxSonarCollisionAvoidance::LvMaxSonarCollisionAvoidance(int pwPin,
+                                                           int minRangeCm)
+  : LvMaxSonar(pwPin), minRangeCm(minRangeCm)
+{
+  // nothing more to do here, move along...
+}
+
+long LvMaxSonarCollisionAvoidance::getDistanceCm()
+{
+  long cm = LvMaxSonar::getDistanceCm();
+
+  if(cm <= minRangeCm)
+    tooClose = true;
+  else
+    tooClose = false;
+    
+  return cm;
+}
+
+bool LvMaxSonarCollisionAvoidance::isTooClose()
 {
   return tooClose;
 }
+
 

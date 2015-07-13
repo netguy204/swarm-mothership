@@ -38,6 +38,8 @@ void setup() {
   gpsfsm.begin();
 }
 
+
+// FRED --> Free-Roving Exploration Device ;-)
 class NorthFindingFred {
   enum {
     STARTUP,
@@ -88,13 +90,14 @@ class NorthFindingFred {
           int16_t output = p_output;
           //Serial.print("output:  ");
           //Serial.println(output);
+          // tfsm.write(-output, output); <-- is this correct?
           tfsm.write(output, -output);
           state = SEARCHING;
         }
       }        
     }
   }
-};
+};  // NorthFindingFred class
 
 
 class MagnetometerCalibration {
