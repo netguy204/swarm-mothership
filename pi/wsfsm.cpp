@@ -42,6 +42,43 @@ size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
   return nmemb;
 }
 
+bool WebServiceFSM::putJson(JsonObject& msg) {
+  char status[MAX_MSG_SIZE];
+
+  // .printTo stupidly writes a '\0' in its last position, so any destination
+  // printed to must ask for one more than the strlen of the JSON.  At the
+  // other end of the connection, Node.js will choke on PUT data if you throw a
+  // null byte at it.  So, the FILE* must be as large as the JSON string, not
+  // counting the null byte.
+  // I place the primary blame on ArduinoJson for this one.  Honte, Benoit!
+  msg.printTo(status, 1+msg.measureLength());
+  auto buf = fmemopen(status, msg.measureLength(), "r");
+
+  struct curl_slist *list = NULL;
+   // The current server requires the data uploaded as app/json type
+  list = curl_slist_append(list, "Content-type: application/json");
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+
+  curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
+  curl_easy_setopt(curl, CURLOPT_READDATA, buf);
+
+  res = curl_easy_perform(curl);
+  curl_slist_free_all(list);
+  fclose(buf);
+
+  // Check for errors
+  if(res != CURLE_OK) {
+    fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
+        curl_easy_strerror(res));
+  }
+  else {
+    fprintf(stderr, "WebQ: Connection successful\n");
+  }
+
+  return res == CURLE_OK;
+}
+
+
 // TODO: need to be able to do both post (for sensor status) and put (for acking commands)
 // hence  httpMethod
 bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
@@ -58,7 +95,7 @@ bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, J
   // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":0,\"long\":1}");
 
   CURLcode res = curl_easy_perform(curl);
-  /* Check for errors */
+  // Check for errors
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
@@ -145,10 +182,8 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
 }
 
 
-/*
-cmd json syntax:
-if type=DRIVE speed, heading
-*/
+//cmd json syntax:
+//if type=DRIVE speed, heading
 Message WebServiceFSM::pullQueuedCmd() {
 
   StaticJsonBuffer<200> jsonBuffer;

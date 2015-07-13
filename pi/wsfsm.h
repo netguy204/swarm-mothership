@@ -30,6 +30,8 @@ class WebServiceFSM : public UpstreamFSM {
 
 
  public:
+  static constexpr auto MAX_MSG_SIZE = 512;
+
 
   // TODO - update per cpp
   WebServiceFSM();
@@ -37,6 +39,8 @@ class WebServiceFSM : public UpstreamFSM {
     curl_easy_setopt(curl, CURLOPT_URL, endpoint);
   };
   ~WebServiceFSM();
+
+  bool putJson(JsonObject& msg);
 
   bool command_available;
   bool command_completed;
