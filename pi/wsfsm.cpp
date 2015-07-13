@@ -125,8 +125,8 @@ JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char
 {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
 
-  char from_server[MAX_MSG_SIZE];
-  auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
+  char from_server[T];
+  auto fin = fmemopen(from_server, T, "w");
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
 
   res = curl_easy_perform(curl);
