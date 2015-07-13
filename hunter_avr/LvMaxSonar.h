@@ -32,7 +32,9 @@ class LvMaxSonar
     long lastMeasurementCm = -1;
   
   public:
-    LvMaxSonar(int pinNumberIn);
+    LvMaxSonar();
+    
+    void setPin(int pinNumberIn);
 
     long getDistanceCm();  // return the distance in cm
     long getLastMeasurementCm();

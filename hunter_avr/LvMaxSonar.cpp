@@ -15,10 +15,14 @@
 #include "LvMaxSonar.h"
 
 // LvMaxSonar constructor
-LvMaxSonar::LvMaxSonar(int pwPin)
-  : pwPin(pwPin)
+LvMaxSonar::LvMaxSonar()
 {
   // nothing more to do here, move along...
+}
+
+void LvMaxSonar::setPin(int pinIn)
+{
+  pwPin = pinIn;
 }
 
 long LvMaxSonar::getDistanceCm()
@@ -46,11 +50,12 @@ long LvMaxSonar::getLastMeasurementCm()
 
 
 // LvMaxSonarCollisionAvoidance constructor
-LvMaxSonarCollisionAvoidance::LvMaxSonarCollisionAvoidance(int pwPin,
+LvMaxSonarCollisionAvoidance::LvMaxSonarCollisionAvoidance(int pinIn,
                                                            int minRangeCm)
-  : LvMaxSonar(pwPin), minRangeCm(minRangeCm)
+  : minRangeCm(minRangeCm)
 {
   // nothing more to do here, move along...
+  setPin(pinIn);
 }
 
 long LvMaxSonarCollisionAvoidance::getDistanceCm()

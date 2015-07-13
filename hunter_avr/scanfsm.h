@@ -15,15 +15,31 @@
 
 #include <Arduino.h>
 #include <Servo.h>
+#include "LvMaxSonar.h"
 
 
-#define SCANNER_SERVO_PIN     333
+// TODO - set the pin numbers
+#define SCANFSM_SERVO_PIN     111
 
-#define SCANNER_SONAR_PIN     111
-#define SCANNER_IR_PIN        222   
+#define SCANFSM_SONAR_PIN     (123)
 
-#define SCANNER_SERVO_ANGLE_MIN     45
-#define SCANNER_SERVO_ANGLE_MAX     135
+
+// TODO - set these values appropriately
+#define SCANFSM_SERVO_ANGLE_MIN     45
+#define SCANFSM_SERVO_ANGLE_MAX     135
+
+
+#if !defined(__AVR_ATmega2560__)
+#  define SCANFSM_IR_PIN       2
+#  define IRpin_PIN            PIND
+#else
+// IR sensor (on Mega)
+#  define SCANFSM_IR_PIN       4
+#  define IRpin_PIN            PINE
+#endif
+
+#define RESOLUTION             20    // usec between samples
+#define MAXPULSE               1000  // how long we'll look for IR
 
 
 class ScanFSM {
@@ -31,10 +47,10 @@ class ScanFSM {
   private:
     uint8_t state;
     
-    LvMaxSonar lvMaxSonar(SCANNER_SONAR_PIN);
+    LvMaxSonar lvMaxSonar();  //(SCANFSM_SONAR_PIN);
     
     Servo scannerServo;  // create servo object to control a servo 
-    int servoAngle = SCANNER_SERVO_ANGLE_MIN;
+    int servoAngle = SCANFSM_SERVO_ANGLE_MIN;
 
     void clearScanResults();
 
@@ -53,9 +69,9 @@ class ScanFSM {
     
     // last scan results:
     // each bin will contain a distance in cm
-    int sonarScanResults[SCANNER_SERVO_ANGLE_MAX - SCANNER_SERVO_ANGLE_MIN];
+    int sonarScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
     // each bin will contain a bool indicating whether we saw the IR beacon or not
-    bool irScanResults[SCANNER_SERVO_ANGLE_MAX - SCANNER_SERVO_ANGLE_MIN];
+    bool irScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
     
     void update();
 };

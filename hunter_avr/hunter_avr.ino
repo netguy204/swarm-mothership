@@ -1,6 +1,7 @@
 /**
  */
 
+#include<Servo.h>
 #include <limits.h>
 #include <espduino.h>
 #include "custom_rest.h"

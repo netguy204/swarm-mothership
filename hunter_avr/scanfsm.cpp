@@ -15,10 +15,10 @@
 ScanFSM::ScanFSM()
 {
   
-  myservo.attach(SCANNER_SERVO_PIN);  // attaches the servo on pin 9 to the servo object
+  scannerServo.attach(SCANFSM_SERVO_PIN);  // attaches the servo on pin 9 to the servo object
   
   // enable the IR sensor
-  pinMode(SCANNER_IR_PIN, INPUT);
+  pinMode(SCANFSM_IR_PIN, INPUT);
   
   state = SCAN_IDLE;
 }
@@ -32,7 +32,7 @@ void ScanFSM::update()
   else if(state == START_SCAN)
   {
     // get ready for scan
-    servoAngle = SCANNER_SERVO_ANGLE_MIN;
+    servoAngle = SCANFSM_SERVO_ANGLE_MIN;
     scannerServo.write(servoAngle);
     
     // TODO - need to wait until the servo is in position, if it isn't already there
@@ -40,17 +40,17 @@ void ScanFSM::update()
   }
   else if(state == SCANNING)
   {
-    if(servoAngle >= SCANNER_SERVO_ANGLE_MAX)
+    if(servoAngle >= SCANFSM_SERVO_ANGLE_MAX)
     {
       state == SCAN_COMPLETE;
       // park the servo
-      servoAngle = SCANNER_SERVO_ANGLE_MIN;
+      servoAngle = SCANFSM_SERVO_ANGLE_MIN;
       scannerServo.write(servoAngle);
     }
     else
     {
       long cm = lvMaxSonar.getDistanceCm();
-      sonarScanResults[servoAngle - SCANNER_SERVO_ANGLE_MIN] = cm;
+      sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
       
       scannerServo.write(servoAngle);
       
@@ -76,7 +76,7 @@ boolean ScanFSM::foundIrSignal()
   while(highpulse < MAXPULSE)
   {
     // pin is still HIGH?
-    ir_found |= !(IRpin_PIN & (1 << PIN_SCANNER_IR));
+    ir_found |= !(IRpin_PIN & (1 << SCANFSM_IR_PIN));
     // count off another few microseconds
     highpulse++;
     delayMicroseconds(RESOLUTION);
