@@ -13,7 +13,7 @@ class SensorStatus {
     uint8_t gps_fix_state;
 
     float lat, lon, heading;
-
+    
     SensorStatus();
     void toJson(JsonObject& report);
 };
@@ -21,9 +21,10 @@ class SensorStatus {
 class DriveCommand {
   public:
     enum {
-      DRIVE,
+      DRIVE,        // also used to halt the hunter (set speeds = 0) 
       SPIRAL_OUT,
-      SET_HEADING
+      SET_HEADING,
+      SCAN          // stop & do a scan, then await a DRIVE cmd to get moving again
     };
 
     uint32_t cid;
@@ -44,7 +45,7 @@ class DriveCommand {
       struct {
         int16_t heading;
       } heading;
-
+      
     } payload;
 
     bool fromJson(JsonObject& cmd);

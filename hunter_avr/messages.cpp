@@ -35,9 +35,16 @@ void SensorStatus::toJson(JsonObject& report) {
 }
 
 bool DriveCommand::fromJson(JsonObject& cmd) {
+  // get the command type 
   if(!cmd.containsKey("type")) return false;
-  if(strcmp(cmd["type"], "SET_HEADING") == 0) {
+  if(strcmp(cmd["type"], "DRIVE") == 0) {
+    command = DRIVE;
+  } else if(strcmp(cmd["type"], "SPIRAL_OUT") == 0) {
+    command = SPIRAL_OUT;
+  } else if(strcmp(cmd["type"], "SET_HEADING") == 0) {
     command = SET_HEADING;
+  } else if(strcmp(cmd["type"], "SCAN") == 0) {
+    command = SCAN;
   } else {
     const char* type = cmd["type"];
     Serial.print("unrecognized type ");
@@ -48,7 +55,9 @@ bool DriveCommand::fromJson(JsonObject& cmd) {
   cid = cmd["cid"];
   pid = cmd["pid"];
   
+  // get the command parameters
   if(command == DRIVE) {
+    // get speeds
     if(!cmd.containsKey("sl") || !cmd.containsKey("sr")) return false;
     
     payload.drive.speed_left = cmd["sl"];
@@ -63,6 +72,9 @@ bool DriveCommand::fromJson(JsonObject& cmd) {
     if(!cmd.containsKey("heading")) return false;
     
     payload.heading.heading = cmd["heading"];
+    return true;
+  } else if(command == SCAN) {
+    // no parameters for scanning...?
     return true;
   } else {
     return false;
