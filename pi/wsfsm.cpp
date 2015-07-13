@@ -9,8 +9,6 @@
 
 #include "wsfsm.h"
 
-static char cmdFromQueue[256];
-
 WebServiceFSM::WebServiceFSM() {
   state = UpstreamState::DISCONNECTED;
   command_available = false;
@@ -140,7 +138,7 @@ JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char
     char failed[3] = "!!";
     return jsonBuffer.parseObject(failed); // so obj.success will be false
   }
-  fprintf(stderr, "%s\n", cmdFromQueue);
+  fprintf(stderr, "%s\n", from_server);
   JsonObject& root = jsonBuffer.parseObject(from_server);
   return root;
 
