@@ -110,26 +110,27 @@ bool WebServiceFSM::postJson(JsonObject& msg) {
 bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
 
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
-  // Add a byte at both the allocation and printing steps
-  // for the NULL.
-  char *buf = (char*)malloc(1 + root.measureLength());
-  root.printTo(buf, 1+root.measureLength());
-  printf("%s\n", buf);
+  // .printTo stupidly writes a '\0' in its last position, so any destination
+  // printed to must ask for one more than the strlen of the JSON.
+  char to_server[MAX_MSG_SIZE];
+  root.printTo(to_server, 1+root.measureLength());
+  printf("%s\n", to_server);
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, to_server);
 
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, buf);
-  // curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"id\":0,\"long\":1}");
+  char from_server[MAX_MSG_SIZE];
+  auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
+
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
 
   CURLcode res = curl_easy_perform(curl);
+  fclose(fin);
   // Check for errors
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
-    free(buf);
     return false;
   }
-  fprintf(stderr, "WebQ: Connection successful\n");
-  free(buf);
+  fprintf(stderr, "WebQ: Connection successful: '%s'\n", from_server);
   return true;
 }
 
@@ -137,20 +138,25 @@ template <size_t T>
 JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char* endpoint)
 {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
-  CURLcode res = curl_easy_perform(curl);
+
+  char from_server[MAX_MSG_SIZE];
+  auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
+
+  res = curl_easy_perform(curl);
+  fclose(fin);
 
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
     char failed[3] = "!!";
     return jsonBuffer.parseObject(failed); // so obj.success will be false
-   }
+  }
   fprintf(stderr, "%s\n", cmdFromQueue);
-  JsonObject& root = jsonBuffer.parseObject(cmdFromQueue);
+  JsonObject& root = jsonBuffer.parseObject(from_server);
   return root;
 
-  }
+}
 
 void WebServiceFSM::update() {
 
@@ -162,7 +168,7 @@ void WebServiceFSM::update() {
   }
 
   if(state == UpstreamState::ACKING && delayExpired()) {
-    StaticJsonBuffer<200> jsonBuffer;
+    StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
     JsonObject& obj = jsonBuffer.createObject();
     command.toJson(obj);
     if (transmitJson("PUT","http://localhost:8080/commands",obj)) {
@@ -172,7 +178,7 @@ void WebServiceFSM::update() {
     }
   }
   if(state == UpstreamState::FETCH_CMD) {
-    StaticJsonBuffer<200> jsonBuffer;
+    StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
     JsonObject& obj = fetchJson(jsonBuffer, "http://localhost:8080/commands?pid=0");
     if (!obj.success()) {
       setDelay(READ_AGAIN_COOLDOWN_TIME);
@@ -195,7 +201,7 @@ void WebServiceFSM::update() {
 
 void WebServiceFSM::putCmdStatus(long cid, bool status) {
 
-  StaticJsonBuffer<200> jsonBuffer;
+  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
   root["cid"] = 0; // mothership
 
@@ -212,11 +218,16 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
 //cmd json syntax:
 //if type=DRIVE speed, heading
 Message WebServiceFSM::pullQueuedCmd() {
+  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
 
-  StaticJsonBuffer<200> jsonBuffer;
-  curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, write_data);
+  char from_server[MAX_MSG_SIZE];
+  auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
+
   curl_easy_setopt(curl, CURLOPT_POSTFIELDS, "{\"pid\":0}");
-  CURLcode res = curl_easy_perform(curl);
+
+  res = curl_easy_perform(curl);
+  fclose(fin);
 
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
@@ -224,8 +235,8 @@ Message WebServiceFSM::pullQueuedCmd() {
     //return 1;
   }
   fprintf(stderr, "WebQ: Connection successful\n");
-  fprintf(stderr, "%s\n", cmdFromQueue);
-  JsonObject& root = jsonBuffer.parseObject(cmdFromQueue);
+  fprintf(stderr, "%s\n", from_server);
+  auto& root = jsonBuffer.parseObject(from_server);
 
   if (!root.success()) {
     printf("json parsing failed.\n");
