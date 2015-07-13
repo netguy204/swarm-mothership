@@ -30,18 +30,6 @@ WebServiceFSM::~WebServiceFSM() {
   curl_global_cleanup();
 }
 
-// callback that curl uses to capture the read data instead of
-// printing it to the screen
-size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
-  size_t n = 0;
-  while(n < size*nmemb) {
-    fprintf(stderr, "%c", (char)((char*)buffer)[n++]);
-  }
-  strncpy(cmdFromQueue,(char*)buffer,size*nmemb);
-  cmdFromQueue[size*nmemb] = '\0';
-  return nmemb;
-}
-
 bool WebServiceFSM::putJson(JsonObject& msg) {
   // .printTo stupidly writes a '\0' in its last position, so any destination
   // printed to must ask for one more than the strlen of the JSON.  At the
