@@ -91,57 +91,47 @@ bool WebServiceFSM::postJson(JsonObject& msg) {
   return res == CURLE_OK;
 }
 
-// TODO: need to be able to do both post (for sensor status) and put (for acking commands)
-// hence  httpMethod
-bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
-
+JsonObject& WebServiceFSM::getJson(const char* endpoint) {
   curl_easy_setopt(curl, CURLOPT_URL, endpoint);
-  // .printTo stupidly writes a '\0' in its last position, so any destination
-  // printed to must ask for one more than the strlen of the JSON.
-  char to_server[MAX_MSG_SIZE];
-  root.printTo(to_server, 1+root.measureLength());
-  printf("%s\n", to_server);
-  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, to_server);
 
   char from_server[MAX_MSG_SIZE];
   auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
 
   curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
 
-  CURLcode res = curl_easy_perform(curl);
-  fclose(fin);
-  // Check for errors
-  if(res != CURLE_OK) {
-    fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
-        curl_easy_strerror(res));
-    return false;
-  }
-  fprintf(stderr, "WebQ: Connection successful: '%s'\n", from_server);
-  return true;
-}
-
-template <size_t T>
-JsonObject& WebServiceFSM::fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char* endpoint)
-{
-  curl_easy_setopt(curl, CURLOPT_URL, endpoint);
-
-  char from_server[T];
-  auto fin = fmemopen(from_server, T, "w");
-  curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
-
   res = curl_easy_perform(curl);
   fclose(fin);
 
+  // Check for errors
+  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
     char failed[3] = "!!";
     return jsonBuffer.parseObject(failed); // so obj.success will be false
   }
-  fprintf(stderr, "%s\n", from_server);
-  JsonObject& root = jsonBuffer.parseObject(from_server);
-  return root;
 
+  fprintf(stderr, "WebQ: Connection successful, received '%s'\n", from_server);
+
+  return jsonBuffer.parseObject(from_server);
+}
+
+// TODO: need to be able to do both post (for sensor status) and put (for acking commands)
+// hence  httpMethod
+bool WebServiceFSM::transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root) {
+
+  curl_easy_setopt(curl, CURLOPT_URL, endpoint);
+
+  if(!strcmp(httpMethod, "PUT")) {
+    return putJson(root);
+  }
+  if(!strcmp(httpMethod, "POST")) {
+    return postJson(root);
+  }
+
+  fprintf(stderr, "Unknown method '%s'\n", httpMethod);
+
+  return false;
 }
 
 void WebServiceFSM::update() {
@@ -164,8 +154,7 @@ void WebServiceFSM::update() {
     }
   }
   if(state == UpstreamState::FETCH_CMD) {
-    StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
-    JsonObject& obj = fetchJson(jsonBuffer, "http://localhost:8080/commands?pid=0");
+    auto& obj = getJson("http://localhost:8080/commands?pid=0");
     if (!obj.success()) {
       setDelay(READ_AGAIN_COOLDOWN_TIME);
       state = UpstreamState::IDLE;

@@ -31,6 +31,7 @@ class WebServiceFSM : public UpstreamFSM {
   };
   ~WebServiceFSM();
 
+  JsonObject& getJson(const char* endpoint);
   bool putJson(JsonObject& msg);
   bool postJson(JsonObject& msg);
 
@@ -53,9 +54,6 @@ class WebServiceFSM : public UpstreamFSM {
   struct curl_slist *list;
 
   bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root);
-
-  template <size_t T>
-  JsonObject& fetchJson(StaticJsonBuffer<T>& jsonBuffer, const char* endpoint);
 };
 
 #endif
