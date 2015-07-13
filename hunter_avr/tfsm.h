@@ -2,6 +2,7 @@
 #define TFSM_H
 
 
+// XXX - I believe the speed control pins are swapped (JMA)
 #define TRACK2_SPEED 5
 #define TRACK1_SPEED 6
 #define TRACK2_DIRECTION 7
