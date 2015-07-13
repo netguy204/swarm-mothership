@@ -103,7 +103,6 @@ JsonObject& WebServiceFSM::getJson(const char* endpoint) {
   fclose(fin);
 
   // Check for errors
-  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
   if(res != CURLE_OK) {
     fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
         curl_easy_strerror(res));
@@ -144,7 +143,6 @@ void WebServiceFSM::update() {
   }
 
   if(state == UpstreamState::ACKING && delayExpired()) {
-    StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
     JsonObject& obj = jsonBuffer.createObject();
     command.toJson(obj);
     if (transmitJson("PUT","http://localhost:8080/commands",obj)) {
@@ -176,7 +174,6 @@ void WebServiceFSM::update() {
 
 void WebServiceFSM::putCmdStatus(long cid, bool status) {
 
-  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
   JsonObject& root = jsonBuffer.createObject();
   root["cid"] = 0; // mothership
 
@@ -193,7 +190,6 @@ void WebServiceFSM::putCmdStatus(long cid, bool status) {
 //cmd json syntax:
 //if type=DRIVE speed, heading
 Message WebServiceFSM::pullQueuedCmd() {
-  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
 
   char from_server[MAX_MSG_SIZE];
   auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");

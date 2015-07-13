@@ -52,6 +52,7 @@ class WebServiceFSM : public UpstreamFSM {
   CURL *curl;
   CURLcode res;
   struct curl_slist *list;
+  StaticJsonBuffer<MAX_MSG_SIZE> jsonBuffer;
 
   bool transmitJson(const char* httpMethod, const char* endpoint, JsonObject& root);
 };
