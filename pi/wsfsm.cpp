@@ -1,10 +1,11 @@
-#include <asm/types.h>
-#include <sys/ioctl.h>
 #include <errno.h>
 #include <fcntl.h>
 #include <stdio.h>
-#include <unistd.h>
 #include <string.h>
+#include <unistd.h>
+
+#include <asm/types.h>
+#include <sys/ioctl.h>
 
 #include "wsfsm.h"
 

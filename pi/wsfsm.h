@@ -2,7 +2,9 @@
 #define WSFSM_H
 
 #include <stdint.h>
+
 #include <curl/curl.h>
+
 #include <ArduinoJson.h>
 
 #include "protocol.h"
