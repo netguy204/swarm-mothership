@@ -41,6 +41,7 @@ class WebServiceFSM : public UpstreamFSM {
   ~WebServiceFSM();
 
   bool putJson(JsonObject& msg);
+  bool postJson(JsonObject& msg);
 
   bool command_available;
   bool command_completed;

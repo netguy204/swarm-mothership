@@ -43,28 +43,28 @@ size_t write_data(void *buffer, size_t size, size_t nmemb, void *userp) {
 }
 
 bool WebServiceFSM::putJson(JsonObject& msg) {
-  char status[MAX_MSG_SIZE];
-
   // .printTo stupidly writes a '\0' in its last position, so any destination
   // printed to must ask for one more than the strlen of the JSON.  At the
   // other end of the connection, Node.js will choke on PUT data if you throw a
   // null byte at it.  So, the FILE* must be as large as the JSON string, not
   // counting the null byte.
   // I place the primary blame on ArduinoJson for this one.  Honte, Benoit!
-  msg.printTo(status, 1+msg.measureLength());
-  auto buf = fmemopen(status, msg.measureLength(), "r");
-
-  struct curl_slist *list = NULL;
-   // The current server requires the data uploaded as app/json type
-  list = curl_slist_append(list, "Content-type: application/json");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+  char to_server[MAX_MSG_SIZE];
+  msg.printTo(to_server, 1+msg.measureLength());
+  auto fout = fmemopen(to_server, msg.measureLength(), "r");
 
   curl_easy_setopt(curl, CURLOPT_UPLOAD, 1);
-  curl_easy_setopt(curl, CURLOPT_READDATA, buf);
+  curl_easy_setopt(curl, CURLOPT_READDATA, fout);
+
+  char from_server[MAX_MSG_SIZE];
+  auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
 
   res = curl_easy_perform(curl);
-  curl_slist_free_all(list);
-  fclose(buf);
+  fclose(fin);
+  fclose(fout);
+  // Turn off PUT mode
+  curl_easy_setopt(curl, CURLOPT_UPLOAD, 0);
 
   // Check for errors
   if(res != CURLE_OK) {
@@ -72,12 +72,38 @@ bool WebServiceFSM::putJson(JsonObject& msg) {
         curl_easy_strerror(res));
   }
   else {
-    fprintf(stderr, "WebQ: Connection successful\n");
+    fprintf(stderr, "WebQ: Connection successful, received '%s'\n", from_server);
   }
 
   return res == CURLE_OK;
 }
 
+bool WebServiceFSM::postJson(JsonObject& msg) {
+  // .printTo stupidly writes a '\0' in its last position, so any destination
+  // printed to must ask for one more than the strlen of the JSON.
+  char to_server[MAX_MSG_SIZE];
+  msg.printTo(to_server, 1+msg.measureLength());
+  curl_easy_setopt(curl, CURLOPT_POSTFIELDS, to_server);
+
+  char from_server[MAX_MSG_SIZE];
+  auto fin = fmemopen(from_server, MAX_MSG_SIZE, "w");
+
+  curl_easy_setopt(curl, CURLOPT_WRITEDATA, fin);
+
+  res = curl_easy_perform(curl);
+  fclose(fin);
+
+  // Check for errors
+  if(res != CURLE_OK) {
+    fprintf(stderr, "WebQ: Failed to access %s: %s\n", "localhost",
+        curl_easy_strerror(res));
+  }
+  else {
+    fprintf(stderr, "WebQ: Connection successful, received '%s'\n", from_server);
+  }
+
+  return res == CURLE_OK;
+}
 
 // TODO: need to be able to do both post (for sensor status) and put (for acking commands)
 // hence  httpMethod
