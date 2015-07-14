@@ -17,6 +17,10 @@
 
 #include <Arduino.h>
 
+#define LEFT_COLLISION_AVOID_SENSOR_PIN     22
+#define RIGHT_COLLISION_AVOID_SENSOR_PIN    24
+
+
 #define SCALE_USEC_PER_INCH  149.28      // is 147, according to the datasheet
 #define SCALE_USEC_PER_CM     58.77      
 #define CM_PER_INCH            2.54

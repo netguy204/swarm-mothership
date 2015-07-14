@@ -21,6 +21,8 @@ ScanFSM::ScanFSM()
   pinMode(SCANFSM_IR_PIN, INPUT);
   
   state = SCAN_IDLE;
+  
+  lastScanStepTime = millis();
 }
 
 void ScanFSM::update()
@@ -31,34 +33,58 @@ void ScanFSM::update()
   }
   else if(state == START_SCAN)
   {
-    // get ready for scan
-    servoAngle = SCANFSM_SERVO_ANGLE_MIN;
-    scannerServo.write(servoAngle);
-    
-    // TODO - need to wait until the servo is in position, if it isn't already there
-    
+    // get ready for scan... move servo to SCANFSM_SERVO_ANGLE_MIN
+    if(servoAngle > SCANFSM_SERVO_ANGLE_MIN)
+    {
+      if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
+      {
+        servoAngle--;
+        scannerServo.write(servoAngle);
+        lastScanStepTime = millis();
+      }
+    }
+    else
+    {
+      state = SCANNING;
+      lastScanStepTime = millis();
+    }
   }
   else if(state == SCANNING)
   {
     if(servoAngle >= SCANFSM_SERVO_ANGLE_MAX)
     {
       state == SCAN_COMPLETE;
-      // park the servo
-      servoAngle = SCANFSM_SERVO_ANGLE_MIN;
-      scannerServo.write(servoAngle);
+      newScanResultsWaiting = true;
+      lastScanStepTime = millis();
+      // next, park the servo at SCANFSM_SERVO_ANGLE_MID
     }
     else
     {
-      long cm = lvMaxSonar.getDistanceCm();
-      sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
+      if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
+      {
+        long cm = lvMaxSonar.getDistanceCm();
+        sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
       
-      scannerServo.write(servoAngle);
-      
+        scannerServo.write(servoAngle);
+        lastScanStepTime = millis();
+      }
     }
   }
   else if(state == SCAN_COMPLETE)
   {
-    
+    if(servoAngle > SCANFSM_SERVO_ANGLE_MID)  // park the servo at the mid point
+    {
+      if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
+      {
+        servoAngle--;
+        scannerServo.write(servoAngle);
+        lastScanStepTime = millis();
+      }
+    }
+    else
+    {
+      state = SCAN_IDLE;
+    }
   }
   else
   {

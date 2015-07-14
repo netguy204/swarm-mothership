@@ -18,17 +18,11 @@
 #include "LvMaxSonar.h"
 
 
-// TODO - set the pin numbers
-#define SCANFSM_SERVO_PIN     111
+// set the pin numbers
+#define SCANFSM_SERVO_PIN     A2
+#define SCANFSM_SONAR_PIN     26
 
-#define SCANFSM_SONAR_PIN     (123)
-
-
-// TODO - set these values appropriately
-#define SCANFSM_SERVO_ANGLE_MIN     45
-#define SCANFSM_SERVO_ANGLE_MAX     135
-
-
+// we'll have to look for a 38kHz modulated IR signal
 #if !defined(__AVR_ATmega2560__)
 #  define SCANFSM_IR_PIN       2
 #  define IRpin_PIN            PIND
@@ -41,11 +35,22 @@
 #define RESOLUTION             20    // usec between samples
 #define MAXPULSE               1000  // how long we'll look for IR
 
+// set these values so we don't turn too far (90 degrees seems reasonable)
+#define SCANFSM_SERVO_ANGLE_MIN     45
+#define SCANFSM_SERVO_ANGLE_MAX     135
+#define SCANFSM_SERVO_ANGLE_MID (SCANFSM_SERVO_ANGLE_MIN + ((SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN) / 2))
+
+// how fast should we scan?
+#define SCAN_STEP_DURATION_MSEC     5
+
 
 class ScanFSM {
   
   private:
     uint8_t state;
+    
+    // when did we do the last scan sample?
+    unsigned long lastScanStepTime;
     
     LvMaxSonar lvMaxSonar;  //(SCANFSM_SONAR_PIN);
     
@@ -59,15 +64,16 @@ class ScanFSM {
   public:
     enum State {
       SCAN_IDLE,
-      START_SCAN,
-      SCANNING,
-      SCAN_COMPLETE
+      START_SCAN,    // move servo from the midpoint to the left
+      SCANNING,      // scan from left to right
+      SCAN_COMPLETE  // park the servo at the midpoint
     };
     
     // constructor
     ScanFSM();
     
     // last scan results:
+    bool newScanResultsWaiting = false;
     // each bin will contain a distance in cm
     int sonarScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
     // each bin will contain a bool indicating whether we saw the IR beacon or not
