@@ -41,8 +41,14 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 	var postStatusUpdate = function () {
 		var status = {
 			"pid" : 1,
-			"latitude" : lat + (Math.random() * 0.00001),
-			"longitude" : lon +(Math.random() * 0.00001),
+			"lat" : lat + (Math.random() * 0.00001),
+			"long" : lon +(Math.random() * 0.00001),
+			"Vbattery" : 3.4,
+			"heading": 90,
+			"Vin": 5.0,
+			"gstate": 3, // 3 = awesome, 2 = kinda ok, < 2 = dunno.
+			"gtime": 10020000,
+			"mtime": 10020010,
 			"beacon" : [0, 0, 0, 0, 0, 0],
 			"obstruction" : [0, 0, 0, 0, 0, 0]
 		};

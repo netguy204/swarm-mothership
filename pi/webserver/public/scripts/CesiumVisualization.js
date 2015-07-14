@@ -2,6 +2,12 @@ define("CesiumVisualization", ["Cesium/Cesium"], function (Cesium) {
 
 	var hunterEntities = [];
 	var obstructions = [];
+	
+	var addObstruction = function(hunterLocation,rangeReadout){
+		var polylineVertices = [[]];
+		
+	};
+	
 	var addHunter = function (pid, location) {
 		console.log("adding hunter", location);
 		hunterEntities[pid] = viewer.entities.add({

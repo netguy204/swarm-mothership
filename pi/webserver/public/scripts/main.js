@@ -1,4 +1,4 @@
-requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlInput,Visualization,FakeHunter) {
+requirejs(["ControlInput","CesiumVisualization","FakeHunter","SpatialUtils"], function(ControlInput,Visualization,FakeHunter,SpatialUtils) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -31,6 +31,8 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlI
 	
 	var controlInput = new ControlInput();
 	controlInput.setEntityPID(101);
+	
+	SpatialUtils.debugRangesToLines();
 	//Visualization.addHunter(1,{longitude:-76.896736,latitude:39.170863});
 	
 });
