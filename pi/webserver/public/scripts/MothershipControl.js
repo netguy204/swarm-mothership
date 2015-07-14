@@ -29,7 +29,7 @@ define("MothershipControl",[],function(){
 	var sendCommand = function(){
 	if(arrowsDown.up || arrowsDown.down || arrowsDown.left || arrowsDown.right){
 		var req = new XMLHttpRequest();
-		req.onload = function(response){updateHunterPositions(response)};
+		req.onload = function(response){};
 		req.withCredentials = true;
 		req.open("POST", "http://localhost:8080/commands", true);
 		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
