@@ -71,9 +71,11 @@ class ScanFSM {
     
     // constructor
     ScanFSM();
+    void startScan();
     
     // last scan results:
     bool newScanResultsWaiting = false;
+    
     // each bin will contain a distance in cm
     int sonarScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
     // each bin will contain a bool indicating whether we saw the IR beacon or not

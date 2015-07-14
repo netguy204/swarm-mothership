@@ -37,6 +37,34 @@ void SensorStatus::toJson(JsonObject& report) {
   report["vin"] = vin;
 }
 
+ScanResults::ScanResults()
+  : lat(0), lon(0), heading(0) {
+}
+
+void ScanResults::toJson(JsonObject& report) {
+  report["gtime"] = gps_time_ms;
+  report["mtime"] = message_time_ms;
+  
+  report["lat"] = lat;
+  report["long"] = lon;
+  report["hdg"] = heading;
+  report["pid"] = swarmID();
+  
+  report["gstate"] = gps_fix_state;
+  
+  // arrays of stuff (ranges & IR detections)
+  
+  JsonArray&  obstructionArray  = report.createNestedArray("obstruction");
+  for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++) {
+    obstructionArray.add(sonarScanResults[i]);
+  }
+  
+  JsonArray&  beaconArray  = report.createNestedArray("beacon");
+  for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++) {
+    beaconArray.add(irScanResults[i]);
+  }
+}
+
 bool DriveCommand::fromJson(JsonObject& cmd) {
   // get the command type 
   if(!cmd.containsKey("type")) return false;

@@ -23,6 +23,16 @@ ScanFSM::ScanFSM()
   state = SCAN_IDLE;
   
   lastScanStepTime = millis();
+  newScanResultsWaiting = true;
+}
+
+void ScanFSM::startScan()
+{
+  // this will start the scanning process when we next call update()
+  // first, we need to move the scanner from the parked (midpoint) position to the left
+  // next, scan from left to right
+  // when done scanning, park the servo again at the midpoint  
+  state = START_SCAN;
 }
 
 void ScanFSM::update()

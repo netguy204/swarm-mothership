@@ -3,6 +3,7 @@
 
 #include <ArduinoJson.h>
 #include "common.h"
+#include "scanfsm.h"
 
 class SensorStatus {
   public:
@@ -15,6 +16,23 @@ class SensorStatus {
     float lat, lon, heading, vbattery, vin;
 
     SensorStatus();
+    void toJson(JsonObject& report);
+};
+
+class ScanResults {
+  public:
+
+    uint32_t gps_time_ms, message_time_ms;
+    uint8_t gps_fix_state;
+
+    float lat, lon, heading;
+    
+    // each bin will contain a distance in cm
+    int sonarScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
+    // each bin will contain a bool indicating whether we saw the IR beacon or not
+    bool irScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
+    
+    ScanResults();
     void toJson(JsonObject& report);
 };
 

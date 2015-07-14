@@ -12,6 +12,7 @@
 #include "pfsm.h"
 #include "gpsfsm.h"
 #include "mfsm.h"
+#include "scanfsm.h"
 #include "tfsm.h"
 #include "pid.h"
 
@@ -55,7 +56,9 @@ GPSFSM gpsfsm(Serial3, &Serial);
 TracksFSM tfsm;
 MagFSM mfsm(0x1E); // I2C 7bit address of HMC5883
 
-Profiler<5> pf;
+ScanFSM scanfsm;
+
+Profiler<6> pf;
 
 void setup() {
   Serial.begin(115200);
@@ -90,6 +93,8 @@ class FRED {
     RUNNING_SET_HEADING,
     START_DRIVE,
     RUNNING_DRIVE,
+    START_SCANNING,
+    SCANNING,
     MAX
   };
 
@@ -195,11 +200,27 @@ class FRED {
         tfsm.write((int16_t)t1, (int16_t)t2);
       }
     }
+    
+    if(state == START_SCANNING) {
+      scanfsm.startScan();
+    }
+    
+    if(state == SCANNING) {
+      if(scanfsm.newScanResultsWaiting == true)
+      {
+        // TODO - send the data arrays to the mothership
+        
+        state = IDLE;
+      }
+    }
   }
 };
 
 FRED fred;
 SensorStatus ss;
+
+ScanResults scanResults;
+
 
 void loop() {
   ApplicationMonitor.IAmAlive();
@@ -213,6 +234,7 @@ void loop() {
   gpsfsm.update(); pf.mark(2);
   mfsm.update(); pf.mark(3);
   tfsm.update(); pf.mark(4);
+  scanfsm.update(); pf.mark(5);
 
   fred.update(mfsm, tfsm);
 
@@ -233,6 +255,9 @@ void loop() {
       fred.drive_speed = pfsm.command.payload.drive.speed;
       fred.command_timeout = pfsm.command.duration;
       fred.state = FRED::START_DRIVE;
+    } else if(pfsm.command.command == DriveCommand::SCAN) {
+      // FRED will start scanning (sonar ranging & looking for IR)
+      fred.state = FRED::START_SCANNING; 
     }
     // ack optimistically so protocol can fetch the next command
     pfsm.command_complete = true;
@@ -259,6 +284,22 @@ void loop() {
     pfsm.sendStatus(ss);
   }
 
+  if(pfsm.state == ProtocolFSM::IDLE && scanfsm.newScanResultsWaiting == true) {
+    scanResults.heading = mfsm.heading();
+    scanResults.gps_time_ms = gpsfsm.lastTime;
+
+    scanResults.message_time_ms = gpsfsm.gmillis();
+    scanResults.lat = gpsfsm.lat;
+    scanResults.lon = gpsfsm.lon;
+    scanResults.gps_fix_state = gpsfsm.status;
+    for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++)
+    {
+      scanResults.sonarScanResults[i] = scanfsm.sonarScanResults[i];
+      scanResults.irScanResults[i] = scanfsm.irScanResults[i];
+    }
+    
+    pfsm.sendStatus(scanResults);
+  }
 
   gpsfsm.ackLatLon();
   mfsm.ackData();
@@ -272,7 +313,7 @@ void loop() {
 #endif
   }
 
-  pf.mark(5);
+  pf.mark(6);
 
   if(pf.nstarts == 10000) {
     pf.report();
