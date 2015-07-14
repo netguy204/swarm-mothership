@@ -50,6 +50,7 @@ int main(int argc, char** argv) {
       old_state = pfsm.state;
     }
     */
+      Message msg;
 
     // can we send another message?
     if(pfsm.state == IDLE) {
@@ -77,7 +78,6 @@ int main(int argc, char** argv) {
       int8_t angle_ival = static_cast<int8_t>(angle_value);
       //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
 
-      Message msg;
       messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
       pfsm.send(&msg);
@@ -89,15 +89,13 @@ int main(int argc, char** argv) {
       // don't care for now
       fprintf(stderr, "ignorning error\n");
       pfsm.clearError();
-
-      // webservice: resend what we sent last
+      messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+      pfsm.send(&msg);
+      // webservice: will be implemented in wsfsm.cpp later
     }
 
     if(pfsm.state == ACK_COMPLETE) {
-      // TODO: tell the webservice that we did what was asked
       pfsm.acknowledgeAck();
-
-      // webservice: tell the service we finished the command
     }
 
     // sleep off any delay the protocol is waiting for because we have
