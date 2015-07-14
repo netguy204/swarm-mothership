@@ -1,4 +1,4 @@
-requirejs(["MothershipControl","CesiumVisualization","FakeHunter"], function(MothershipControl,Visualization,FakeHunter) {
+requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlInput,Visualization,FakeHunter) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -28,6 +28,9 @@ requirejs(["MothershipControl","CesiumVisualization","FakeHunter"], function(Mot
 	
 	var fh = new FakeHunter();
 	fh.start();
+	
+	var controlInput = new ControlInput();
+	controlInput.setEntityPID(101);
 	//Visualization.addHunter(1,{longitude:-76.896736,latitude:39.170863});
 	
 });

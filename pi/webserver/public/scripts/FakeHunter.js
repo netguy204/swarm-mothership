@@ -8,7 +8,6 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 	var postFakeCommandFromMothership = function () {
 		var left = Math.ceil(Math.random() * 3);
 		var right = Math.ceil(Math.random() * 3);
-		console.log(left, right);
 		var req = new XMLHttpRequest();
 		req.onload = function (evt) {};
 		req.withCredentials = true;
@@ -40,7 +39,6 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 	}
 
 	var postStatusUpdate = function () {
-		console.log("post status update", this);
 		var status = {
 			"pid" : 1,
 			"latitude" : lat + (Math.random() * 0.00001),
