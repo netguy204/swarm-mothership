@@ -42,7 +42,7 @@ app.use(function(req, res, next) {
     req.query = querystring.parse(req._parsedUrl.query);
     next();
 });
-console.log("Hosting " + __dirname + "/public statically");
+
 app.use(serveStatic(__dirname + "/public/"));
 
 app.use("/status", function(req, res, next) {
@@ -94,6 +94,11 @@ app.use("/history", function(req, res, next) {
     next();
 });
 
+app.use("/killQueue",function(req,res,next){
+commands = [];
+next();
+});
+
 
 app.use("/commands", function(req, res, next) {
     res.setHeader('Content-Type', 'application/json');
@@ -141,6 +146,7 @@ app.use("/commands", function(req, res, next) {
                                     message: "PUT command with no CID"}));
             next();
         } else {
+			console.log("setting task " + cid + " to complete");
             for(var idx in commands) {
                 if(commands[idx].cid == cid) {
                     commands[idx].complete = command.complete;

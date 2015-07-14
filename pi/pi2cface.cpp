@@ -46,8 +46,8 @@ int main(int argc, char** argv) {
 
     // can we send another message?
     if(pfsm.state == IDLE) {
-      double speed_value = (static_cast<double>(state.axis[1])) * (63.0 / 32767.0);
-      double angle_value = (static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+      double speed_value = (static_cast<double>(state.axis[1])) * (33.0 / 32767.0);
+      double angle_value = -(static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
 
       // deadzones
       if(speed_value > -5 && speed_value < 5) {

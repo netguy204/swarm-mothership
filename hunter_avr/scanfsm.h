@@ -47,7 +47,7 @@ class ScanFSM {
   private:
     uint8_t state;
     
-    LvMaxSonar lvMaxSonar();  //(SCANFSM_SONAR_PIN);
+    LvMaxSonar lvMaxSonar;  //(SCANFSM_SONAR_PIN);
     
     Servo scannerServo;  // create servo object to control a servo 
     int servoAngle = SCANFSM_SERVO_ANGLE_MIN;

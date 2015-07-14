@@ -5,7 +5,6 @@ TracksFSM::TracksFSM()
 : state(STARTUP) {
 }
 
-  
 int16_t TracksFSM::tween(int16_t current, int16_t target, int16_t max_increment) {
   int16_t step = target - current;
   step = constrain(step, -max_increment, max_increment);

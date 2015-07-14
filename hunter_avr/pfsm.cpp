@@ -1,6 +1,25 @@
 #include "pfsm.h"
 #include "swarm_config.h"
 
+// will be overwritten with our actual swarm id at runtime
+char command_endpoint[] = "/commands?pid=000";
+
+void insertBase10(char* string, uint8_t value) {
+  char buf[3];
+  uint8_t idx = 0;
+  do {
+    buf[idx] = '0' + value % 10;
+    value /= 10;
+    idx++;
+  } while(value > 0);
+  
+  for(uint8_t ii = 0; ii < idx; ++ii) {
+    string[ii] = buf[idx - ii - 1];
+  }
+  
+  string[idx] = '\0';
+}
+
 const char* const ProtocolFSM::StateStr[STATE_MAX+1] = {
   STATES(MAKE_STRING)
 };
@@ -68,7 +87,7 @@ void ProtocolFSM::update() {
   }
   
   if(state > CONNECTING_WIFI && readyCheckTime()) {
-    Serial.println("PFSM: Checking readyness");
+    Serial.println(F("PFSM: Checking readyness"));
     resetReadyCheck();
     if(!esp.ready()) {
       state = ENABLE;
@@ -79,7 +98,7 @@ void ProtocolFSM::update() {
   if(state > CONNECTING_WIFI && isResetTime()) {
     // nothing conclusive has happened to convince us we still
     // have comms so it's time to reset
-    Serial.println("PFSM: Forcing reset");
+    Serial.println(F("PFSM: Forcing reset"));
     resetResetTime();
     state = STARTUP;
   }
@@ -90,6 +109,10 @@ void ProtocolFSM::update() {
     digitalWrite(RESET_PIN, LOW);
     delay_end = millis() + 1000;
     state = POWER_ON_RESET;
+        
+    // correct our swarm id in the endpoint string
+    insertBase10(&command_endpoint[sizeof(command_endpoint) - 4], swarmID());
+    Serial.println(command_endpoint);
   }
   
   if(state == POWER_ON_RESET && delayComplete()) {
@@ -146,8 +169,8 @@ void ProtocolFSM::update() {
     state = SENDING_STATUS;
     status_pending = false;
     
-    StaticJsonBuffer<256> jsonBuffer;
-    char buffer[256];
+    StaticJsonBuffer<328> jsonBuffer;
+    char buffer[328];
     
     JsonObject& obj = jsonBuffer.createObject();
     status.toJson(obj);
@@ -165,18 +188,18 @@ void ProtocolFSM::update() {
     char buffer[128];
     int resp;
     if((resp = rest.getResponse(buffer, sizeof(buffer), false)) == HTTP_STATUS_OK) {
-      Serial.println("PFSM: Status delivered");
+      Serial.println(F("PFSM: Status delivered"));
       resetResetTime();
       resetReadyCheck();
       state = IDLE;
     } else if(delayComplete()) {
-      Serial.println("PFSM: Status timed out");
+      Serial.println(F("PFSM: Status timed out"));
       state = IDLE;
     }
   }
 
   if(state == FETCH_COMMAND) {
-    rest.get("/commands?cid=" STRINGIFY(SWARM_ID));
+    rest.get(command_endpoint);
     
     // prepare for response
     rest.getResponse(NULL, 0, true);
@@ -185,8 +208,8 @@ void ProtocolFSM::update() {
   }
   
   if(state == AWAITING_COMMAND) {
-    StaticJsonBuffer<256> jsonBuffer;
-    char buffer[256];
+    StaticJsonBuffer<128> jsonBuffer;
+    char buffer[128];
     int resp;
     if((resp = rest.getResponse(buffer, sizeof(buffer), false)) == HTTP_STATUS_OK) {    
       // parse the response
@@ -196,22 +219,20 @@ void ProtocolFSM::update() {
       // skip to the payload
       for(uint16_t ii = 0; ii < sizeof(buffer); ++ii) {
         if(buffer[ii] == '\n') {
-          Serial.print("found at ");
-          Serial.println(ii);
           ptr = &buffer[ii+1];
           break;
         }
       }
       JsonArray& root = jsonBuffer.parseArray(ptr);
       if(!root.success()) {
-        Serial.print("PFSM: Failed to parse ");
+        Serial.print(F("PFSM: Failed to parse "));
         Serial.println(ptr);
         command_check = millis() + 1000;
         state = IDLE;
       } else {
         if(root.size() == 0) {
           // nothing in our queue
-          Serial.println("No commands waiting");
+          Serial.println(F("No commands waiting"));
           command_check = millis() + 1000;
           state = IDLE;
         } else {
@@ -220,7 +241,7 @@ void ProtocolFSM::update() {
             command_complete = false;
             state = IDLE;
           } else {
-            Serial.print("PFSM: Message invalid ");
+            Serial.print(F("PFSM: Message invalid "));
             Serial.println(buffer);
             command_check = millis() + 1000;
             state = IDLE;
@@ -228,7 +249,7 @@ void ProtocolFSM::update() {
         }
       }
     } else if(delayComplete()) {
-      Serial.println("PFSM: Command request timed out");
+      Serial.println(F("PFSM: Command request timed out"));
       command_check = millis() + 1000;
       state = IDLE;
     } 
@@ -239,12 +260,12 @@ void ProtocolFSM::update() {
     char buffer[128];
     
     JsonObject& obj = jsonBuffer.createObject();
-    obj["pid"] = SWARM_ID;
+    obj["pid"] = swarmID();
     obj["cid"] = command.cid;
     obj["complete"] = true;
     obj.printTo(buffer, sizeof(buffer));
     
-    rest.put("/commands", buffer);
+    rest.put(command_endpoint, buffer);
     
     // prepare for response
     rest.getResponse(NULL, 0, true);
@@ -263,7 +284,7 @@ void ProtocolFSM::update() {
     } else if(delayComplete()) {
       // this is the one case we retry forever. It's important that the mothership know that
       // we did what we said we would do.
-      Serial.println("PFSM: Ack timed out");
+      Serial.println(F("PFSM: Ack timed out"));
       state = ACK_COMMAND;
     }
   }
