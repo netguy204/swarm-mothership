@@ -26,9 +26,7 @@ class WebServiceFSM : public UpstreamFSM {
 
   // TODO - update per cpp
   WebServiceFSM();
-  WebServiceFSM(const char* endpoint) : WebServiceFSM() {
-    curl_easy_setopt(curl, CURLOPT_URL, endpoint);
-  };
+  WebServiceFSM(const char* endpoint);
   ~WebServiceFSM();
 
   JsonObject& getJson(const char* endpoint);

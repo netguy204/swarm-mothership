@@ -22,6 +22,20 @@ WebServiceFSM::WebServiceFSM() {
   curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
 }
 
+WebServiceFSM::WebServiceFSM(const char* endpoint) {
+  state = UpstreamState::DISCONNECTED;
+  command_available = false;
+  command_completed = false;
+
+  curl_global_init(CURL_GLOBAL_ALL);
+  curl = curl_easy_init();
+  list = NULL;
+   // The current server requires the data uploaded as app/json type
+  list = curl_slist_append(list, "Content-type: application/json");
+  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
+    curl_easy_setopt(curl, CURLOPT_URL, endpoint);
+}
+
 WebServiceFSM::~WebServiceFSM() {
   curl_slist_free_all(list);
   curl_easy_cleanup(curl);
