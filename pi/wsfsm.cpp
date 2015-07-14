@@ -9,20 +9,7 @@
 
 #include "wsfsm.h"
 
-WebServiceFSM::WebServiceFSM() {
-  state = UpstreamState::DISCONNECTED;
-  command_available = false;
-  command_completed = false;
-
-  curl_global_init(CURL_GLOBAL_ALL);
-  curl = curl_easy_init();
-  list = NULL;
-   // The current server requires the data uploaded as app/json type
-  list = curl_slist_append(list, "Content-type: application/json");
-  curl_easy_setopt(curl, CURLOPT_HTTPHEADER, list);
-}
-
-WebServiceFSM::WebServiceFSM(const char* endpoint) {
+WebServiceFSM::WebServiceFSM(const char* endpoint=NULL) {
   state = UpstreamState::DISCONNECTED;
   command_available = false;
   command_completed = false;
