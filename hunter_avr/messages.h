@@ -12,7 +12,7 @@ class SensorStatus {
     Vector<int16_t> magnetometer;
     uint8_t gps_fix_state;
 
-    float lat, lon, heading;
+    float lat, lon, heading, vbattery, vin;
 
     SensorStatus();
     void toJson(JsonObject& report);
@@ -22,24 +22,19 @@ class DriveCommand {
   public:
     enum {
       DRIVE,
-      SPIRAL_OUT,
       SET_HEADING
     };
 
     uint32_t cid;
     uint8_t pid;
     uint8_t command;
-
+    uint16_t duration;
 
     union {
       struct {
-        int8_t speed_left;
-        int8_t speed_right;
+        uint8_t speed;
+        int16_t heading;
       } drive;
-
-      struct {
-        uint8_t extra_radius_per_loop;
-      } spiral_out;
 
       struct {
         int16_t heading;

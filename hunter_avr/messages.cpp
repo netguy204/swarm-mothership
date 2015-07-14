@@ -13,7 +13,7 @@ void SensorStatus::toJson(JsonObject& report) {
   report["lat"] = lat;
   report["long"] = lon;
   report["hdg"] = heading;
-  report["pid"] = SWARM_ID;
+  report["pid"] = swarmID();
   
   report["x"] = ecef_pos_cm.x;
   report["y"] = ecef_pos_cm.y;
@@ -32,32 +32,38 @@ void SensorStatus::toJson(JsonObject& report) {
   report["e"] = enu_cm.x;
   report["n"] = enu_cm.y;
   report["u"] = enu_cm.z;
+  
+  report["vbattery"] = vbattery;
+  report["vin"] = vin;
 }
 
 bool DriveCommand::fromJson(JsonObject& cmd) {
   if(!cmd.containsKey("type")) return false;
-  if(strcmp(cmd["type"], "SET_HEADING") == 0) {
+  
+  const char* type = cmd["type"];
+  if(strcmp(type, "SET_HEADING") == 0) {
     command = SET_HEADING;
-  } else {
-    const char* type = cmd["type"];
+  } else if(strcmp(type, "DRIVE") == 0) {
+    command = DRIVE;
+  } else {  
     Serial.print("unrecognized type ");
     Serial.println(type);
     return false;
   }
   
+  if(!cmd.containsKey("cid") || !cmd.containsKey("pid") || !cmd.containsKey("duration")) {
+    return false;
+  }
+  
   cid = cmd["cid"];
   pid = cmd["pid"];
+  duration = cmd["duration"];
   
   if(command == DRIVE) {
-    if(!cmd.containsKey("sl") || !cmd.containsKey("sr")) return false;
+    if(!cmd.containsKey("speed") || !cmd.containsKey("heading")) return false;
     
-    payload.drive.speed_left = cmd["sl"];
-    payload.drive.speed_right = cmd["sr"];
-    return true;
-  } else if(command == SPIRAL_OUT) {
-    if(!cmd.containsKey("erpl")) return false;
-    
-    payload.spiral_out.extra_radius_per_loop = cmd["erpl"];
+    payload.drive.speed = cmd["speed"];
+    payload.drive.heading = cmd["heading"];
     return true;
   } else if(command == SET_HEADING) {
     if(!cmd.containsKey("heading")) return false;

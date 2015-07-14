@@ -29,8 +29,8 @@ const Vector<int>& SimpleCompensation::center() const {
   return _center;
 }
 
-MagFSM::MagFSM(uint8_t address, MotorCompensation& mc)
-  : updated_data(false), state(CONFIGURE), address(address), mc(mc) {
+MagFSM::MagFSM(uint8_t address)
+  : updated_data(false), state(CONFIGURE), address(address) {
 }
 
 void MagFSM::ackData() {
@@ -93,15 +93,14 @@ void MagFSM::update() {
       y = Wire.read() << 8; //Y msb
       y |= Wire.read(); //Y lsb
 
-      Vector<int> v = Vector<int>(x, y, z) - mc.center();
-      if (v.y == 0) {
-        if (v.x < 0) {
+      if (y == 0) {
+        if (x < 0) {
           hdg = 180;
         } else {
           hdg = 0;
         }
       } else {
-        hdg = atan2(v.x, v.y) * 180 / PI;
+        hdg = atan2(x, y) * 180 / PI;
       }
 
       if (first_measurement) {

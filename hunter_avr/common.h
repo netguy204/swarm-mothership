@@ -9,7 +9,7 @@
 
 #include <Arduino.h>
 
-#define PROFILING
+//#define PROFILING
 
 
 // for dialing back the flood of Serial.print() messages
