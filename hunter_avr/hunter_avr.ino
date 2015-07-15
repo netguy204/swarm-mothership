@@ -298,7 +298,7 @@ void loop() {
       scanResults.irScanResults[i] = scanfsm.irScanResults[i];
     }
     
-    pfsm.sendStatus(scanResults);
+    pfsm.sendScanResults(scanResults);
   }
 
   gpsfsm.ackLatLon();

@@ -9,27 +9,28 @@
 
 #define RESET_PIN 2
 
-#define STATES(m)       \
-  m(POWER_ON),          \
-  m(POWER_ON_RESET),    \
-  m(STARTUP),           \
-  m(ENABLE),            \
-  m(RESET),             \
-  m(DISCONNECTED_WIFI), \
-  m(CONNECTING_WIFI),   \
-                        \
-  m(DISCONNECTED_REST), \
-  m(CONNECTING_REST),   \
-                        \
-  m(IDLE),              \
-                        \
-  m(FETCH_COMMAND),     \
-  m(AWAITING_COMMAND),  \
-                        \
-  m(ACK_COMMAND),       \
-  m(AWAITING_ACK),      \
-                        \
-  m(SENDING_STATUS),    \
+#define STATES(m)          \
+  m(POWER_ON),             \
+  m(POWER_ON_RESET),       \
+  m(STARTUP),              \
+  m(ENABLE),               \
+  m(RESET),                \
+  m(DISCONNECTED_WIFI),    \
+  m(CONNECTING_WIFI),      \
+                           \
+  m(DISCONNECTED_REST),    \
+  m(CONNECTING_REST),      \
+                           \
+  m(IDLE),                 \
+                           \
+  m(FETCH_COMMAND),        \
+  m(AWAITING_COMMAND),     \
+                           \
+  m(ACK_COMMAND),          \
+  m(AWAITING_ACK),         \
+                           \
+  m(SENDING_STATUS),       \
+  m(SENDING_SCAN_RESULTS), \
   m(STATE_MAX)
 
 class ProtocolFSM {
@@ -59,10 +60,12 @@ class ProtocolFSM {
   CREST rest;
   ProtocolState state;
   SensorStatus status;
+  ScanResults scanResults;
   DriveCommand command;
   
   uint8_t wifi_connected : 1;
   uint8_t status_pending : 1;
+  uint8_t scanResults_pending : 1;
   uint8_t command_valid    : 1;
   uint8_t command_complete : 1;
   
@@ -87,6 +90,9 @@ class ProtocolFSM {
   void update();
   
   void sendStatus(const SensorStatus& _status);
+
+  void sendScanResults(const ScanResults& _scanResults);
+  
 };
 
 #endif
