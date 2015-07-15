@@ -1,4 +1,6 @@
 #include "joystick.h"
+#include "systemtime.h"
+
 #include <poll.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -24,9 +26,16 @@ void joystickInit() {
   jsfd = 0;
 }
 
+static Time lastTime;
+
+Time lastJoystickUpdate() {
+  return lastTime;
+}
+
 void joystickState(js_state *js) {
   static js_state state;
   static bool initialized = false;
+
   if(!initialized) {
     memset(&state, sizeof(js_state), 0);
     initialized = true;
@@ -58,6 +67,7 @@ void joystickState(js_state *js) {
       jsfd = 0;
       return;
     }
+    lastTime = Time();
     event.type &= ~JS_EVENT_INIT;
     if(event.type == JS_EVENT_BUTTON && event.number < NBUTTONS) {
       state.button[event.number] = event.value;

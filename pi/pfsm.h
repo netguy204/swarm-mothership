@@ -92,7 +92,7 @@ class RealProtocolFSM : public ProtocolFSM {
   virtual bool clearError();
   virtual bool close();
 };
-
+ 
 
 
 

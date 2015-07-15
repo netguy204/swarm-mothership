@@ -4,6 +4,8 @@
 # of an Arduino distribution. Yours will almost certainly be different
 # than my preferred distribution.
 
+CXXFLAGS+=-I./ArduinoJson
+
 uname_S := $(shell sh -c 'uname -s 2>/dev/null || echo not')
 
 #AVR_TOOLS_DIR = /usr

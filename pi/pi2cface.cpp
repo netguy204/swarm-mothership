@@ -1,10 +1,14 @@
+#include <algorithm>
+
 #include <stdio.h>
 #include <stdlib.h>
+#include <unistd.h>
 
+#include "joystick.h"
 #include "pfsm.h"
 #include "protocol.h"
-#include "joystick.h"
 #include "systemtime.h"
+#include "wsfsm.h"
 
 
 int main(int argc, char** argv) {
@@ -23,6 +27,8 @@ int main(int argc, char** argv) {
     exit(1);
   }
 
+  WebServiceFSM wsfsm{"http://localhost:8080/"};
+
   RealProtocolFSM pfsm;
   pfsm.init(bus, dev);
 
@@ -35,6 +41,7 @@ int main(int argc, char** argv) {
     js_state state;
     joystickState(&state);
 
+    wsfsm.update();
     pfsm.update();
 
     /* DEBUGGING
@@ -43,43 +50,56 @@ int main(int argc, char** argv) {
       old_state = pfsm.state;
     }
     */
+      Message msg;
 
     // can we send another message?
     if(pfsm.state == IDLE) {
-      double speed_value = (static_cast<double>(state.axis[1])) * (33.0 / 32767.0);
-      double angle_value = -(static_cast<double>(state.axis[0])) * (30.0 / 32767.0);
+      double speed_value = 0.0;
+      double angle_value = 0.0;
 
-      // deadzones
-      if(speed_value > -5 && speed_value < 5) {
-        speed_value = 0;
-      }
-      if(angle_value > -2 && angle_value < 2) {
-        angle_value = 0;
-      }
+      if(Time() - lastJoystickUpdate() < TimeLength::inSeconds(1)) {
 
+        speed_value = (static_cast<double>(state.axis[1])) * (33.0 / 32767.0);
+        angle_value = (static_cast<double>(state.axis[0])) * (-30.0 / 32767.0);
+
+        // deadzones
+        if(speed_value > -5 && speed_value < 5) {
+          speed_value = 0;
+        }
+        if(angle_value > -2 && angle_value < 2) {
+          angle_value = 0;
+        }
+      } else if (wsfsm.command_available) {
+        speed_value = wsfsm.command.speed * 33.0;
+        angle_value = std::max(-30.0, std::min(30.0, wsfsm.command.angle*-1.0));
+        wsfsm.command_completed = true;
+      }
       int8_t speed_ival = static_cast<int8_t>(speed_value);
       int8_t angle_ival = static_cast<int8_t>(angle_value);
       //printf("speed = %f, %d  angle = %f, %d\n", speed_value, speed_ival, angle_value, angle_ival);
 
-      Message msg;
       messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
 
       pfsm.send(&msg);
+
     }
+
 
     if(pfsm.state == SENDING_FAILED || pfsm.state == ACKING_FAILED) {
       // don't care for now
       fprintf(stderr, "ignorning error\n");
       pfsm.clearError();
+      messageSignedInit(&msg, COMMAND_SET_MOTION, speed_ival, angle_ival, id++);
+      pfsm.send(&msg);
+      // webservice: will be implemented in wsfsm.cpp later
     }
 
     if(pfsm.state == ACK_COMPLETE) {
-      // TODO: tell the webservice that we did what was asked
       pfsm.acknowledgeAck();
     }
 
     // sleep off any delay the protocol is waiting for because we have
-    // nothing better to do right now
+    // nothing better to do right now - imp. b/c running on battery
     TimeLength delay = pfsm.delayRemaining();
     if(delay > TimeLength::inSeconds(0)) {
       usleep(delay.microseconds());
