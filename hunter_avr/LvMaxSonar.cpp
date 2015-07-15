@@ -32,7 +32,7 @@ long LvMaxSonar::getDistanceCm()
   pinMode(pwPin, INPUT);
 
   // Read the pulse from the LV-MaxSonar-EZ.
-  pulseDuration = pulseIn(pwPin, HIGH);
+  pulseDuration = pulseIn(pwPin, HIGH, CM_MAX_RANGE_USEC_TIMEOUT);
 
   // ~147 usec/inch, times 2.54 to get cm
   //long cm = (pulseDuration/SCALE_USEC_PER_INCH) * CM_PER_INCH;

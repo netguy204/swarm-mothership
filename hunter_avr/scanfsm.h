@@ -64,13 +64,15 @@ class ScanFSM {
   public:
     enum State {
       SCAN_IDLE,
-      START_SCAN,    // move servo from the midpoint to the left
-      SCANNING,      // scan from left to right
+      START_SCAN,    // move servo from the midpoint to the right
+      SCANNING,      // scan from right to left
       SCAN_COMPLETE  // park the servo at the midpoint
     };
     
     // constructor
     ScanFSM();
+    
+    void begin();
     void startScan();
     
     // last scan results:

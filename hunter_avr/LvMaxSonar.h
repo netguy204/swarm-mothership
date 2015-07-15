@@ -25,6 +25,9 @@
 #define SCALE_USEC_PER_CM     58.77      
 #define CM_PER_INCH            2.54
 
+// the maximum range is supposedly 6.45 meters, but we'll say 2...
+#define CM_MAX_RANGE_USEC_TIMEOUT (SCALE_USEC_PER_CM * 200)
+
 #define DEFAULT_MINIMUM_RANGE_CM  6    // how close is too close?
 #define NO_MINIMUM_RANGE_CM       -1   // no minimum range to worry about
 

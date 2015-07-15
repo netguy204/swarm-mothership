@@ -47,16 +47,17 @@ class DriveCommand {
     uint32_t cid;
     uint8_t pid;
     uint8_t command;
-    uint16_t duration;
 
     union {
       struct {
         uint8_t speed;
         int16_t heading;
+        uint16_t duration;
       } drive;
 
       struct {
         int16_t heading;
+        uint16_t duration;
       } heading;
       
     } payload;
