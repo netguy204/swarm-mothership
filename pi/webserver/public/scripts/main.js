@@ -1,4 +1,4 @@
-requirejs(["ControlInput","CesiumVisualization","FakeHunter","SpatialUtils"], function(ControlInput,Visualization,FakeHunter,SpatialUtils) {
+requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlInput,Visualization,FakeHunter) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -6,7 +6,7 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter","SpatialUtils"], fu
 	var updatePositions = function(updateResponse){
 		var platforms = JSON.parse(updateResponse);
 		for(var platform in platforms){
-			Visualization.updateHunter(platforms[platform].pid,{latitude:platforms[platform].latitude,longitude:platforms[platform].longitude});
+			Visualization.updateHunter(platforms[platform].pid,{latitude:platforms[platform].lat,longitude:platforms[platform]["long"]});
 		}
 	};
 	
@@ -30,9 +30,8 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter","SpatialUtils"], fu
 	fh.start();
 	
 	var controlInput = new ControlInput();
-	controlInput.setEntityPID(101);
-	
-	SpatialUtils.debugRangesToLines();
+	controlInput.setEntityPID(105);
+
 	//Visualization.addHunter(1,{longitude:-76.896736,latitude:39.170863});
 	
 });

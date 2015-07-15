@@ -1,9 +1,31 @@
 define("FakeHunter", ["proj4"], function (Proj4) {
 
-	var lat = -76.898080;
-	var lon = 39.165368;
+	var lat = -76.8976622;
+	var lon = 39.1672858;
 	var currentTaskID = 0;
+	var vBattery = 3.4;
+
 	var pid = 1;
+	
+	var genarateFakeObstructionData = function(){
+		var readings = [];
+		for(var i=0;i<90;i++){
+			readings.push(Math.random() * 25);
+		}
+		return readings;
+	}
+	
+	var generateFakeBeaconData = function(){
+		var readings = [];
+		for(var i = 0;i<90;i++){
+			if(Math.round(Math.random() * 100) === 50){
+				readings.push(true);
+			}
+			else{readings.push(false);}
+		}
+		return readings;
+	}
+	
 	
 	var postFakeCommandFromMothership = function () {
 		var left = Math.ceil(Math.random() * 3);
@@ -39,18 +61,21 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 	}
 
 	var postStatusUpdate = function () {
+	
+		
+	
 		var status = {
 			"pid" : 1,
 			"lat" : lat + (Math.random() * 0.00001),
 			"long" : lon +(Math.random() * 0.00001),
-			"Vbattery" : 3.4,
+			"Vbattery" : vBattery,
 			"heading": 90,
 			"Vin": 5.0,
 			"gstate": 3, // 3 = awesome, 2 = kinda ok, < 2 = dunno.
 			"gtime": 10020000,
 			"mtime": 10020010,
-			"beacon" : [0, 0, 0, 0, 0, 0],
-			"obstruction" : [0, 0, 0, 0, 0, 0]
+			"beacon" : generateFakeBeaconData(),
+			"obstruction" : genarateFakeObstructionData()
 		};
 		var req = new XMLHttpRequest();
 		req.withCredentials = true;
