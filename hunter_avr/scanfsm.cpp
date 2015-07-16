@@ -14,13 +14,38 @@
 
 ScanFSM::ScanFSM()
 {
-  
+  Serial.println("In ScanFSM constructor");
+  servoAngle = SCANFSM_SERVO_ANGLE_MID;
+
+  state = SCAN_IDLE;
+  newScanResultsWaiting = false;
+}
+
+void ScanFSM::begin()
+{
+  Serial.println("In ScanFSM::begin()");
+
+  // park the servo at the midpoint
+  Serial.println("Parking the servo");
   scannerServo.attach(SCANFSM_SERVO_PIN);  // attaches the servo on pin 9 to the servo object
+  scannerServo.write(servoAngle);
   
   // enable the IR sensor
+  Serial.println("Enabling the IR pin");
   pinMode(SCANFSM_IR_PIN, INPUT);
   
-  state = SCAN_IDLE;
+  Serial.write("Setting lastScanStepTime: ");
+  lastScanStepTime = millis();
+  Serial.println(lastScanStepTime);
+}
+
+void ScanFSM::startScan()
+{
+  // this will start the scanning process when we next call update()
+  // first, we need to move the scanner from the parked (midpoint) position to the right
+  // next, scan from right to left
+  // when done scanning, park the servo again at the midpoint  
+  state = START_SCAN;
 }
 
 void ScanFSM::update()
@@ -31,34 +56,73 @@ void ScanFSM::update()
   }
   else if(state == START_SCAN)
   {
-    // get ready for scan
-    servoAngle = SCANFSM_SERVO_ANGLE_MIN;
-    scannerServo.write(servoAngle);
-    
-    // TODO - need to wait until the servo is in position, if it isn't already there
-    
-  }
-  else if(state == SCANNING)
-  {
-    if(servoAngle >= SCANFSM_SERVO_ANGLE_MAX)
+    Serial.print("state = START_SCAN, servoAngle = ");
+    Serial.println(servoAngle);
+    // get ready for scan... move servo to SCANFSM_SERVO_ANGLE_MIN
+    if(servoAngle > SCANFSM_SERVO_ANGLE_MIN)
     {
-      state == SCAN_COMPLETE;
-      // park the servo
-      servoAngle = SCANFSM_SERVO_ANGLE_MIN;
-      scannerServo.write(servoAngle);
+      if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
+      {
+        servoAngle--;
+        scannerServo.write(servoAngle);
+        lastScanStepTime = millis();
+        //Serial.print("millis(): ");
+        //Serial.println(lastScanStepTime);
+      }
     }
     else
     {
-      long cm = lvMaxSonar.getDistanceCm();
-      sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
-      
-      scannerServo.write(servoAngle);
-      
+      state = SCANNING;
+      lastScanStepTime = millis();
+    }
+  }
+  else if(state == SCANNING)
+  {
+    Serial.print("state = SCANNING, servoAngle = ");
+    Serial.println(servoAngle);
+    if(servoAngle >= SCANFSM_SERVO_ANGLE_MAX)
+    {
+      state = SCAN_COMPLETE;
+      newScanResultsWaiting = true;
+      lastScanStepTime = millis();
+      //Serial.print("millis(): ");
+      //Serial.println(lastScanStepTime);
+      // next, park the servo at SCANFSM_SERVO_ANGLE_MID
+    }
+    else
+    {
+      if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
+      {
+        long cm = lvMaxSonarSensor.getDistanceCm();
+        sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
+        boolean irFound = foundIrSignal();
+        irScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = irFound;
+        servoAngle++;
+        scannerServo.write(servoAngle);
+        lastScanStepTime = millis();
+        //Serial.print("millis(): ");
+        //Serial.println(lastScanStepTime);
+      }
     }
   }
   else if(state == SCAN_COMPLETE)
   {
-    
+    Serial.print("state = SCAN_COMPLETE, servoAngle = ");
+    Serial.println(servoAngle);
+    if(servoAngle > SCANFSM_SERVO_ANGLE_MID)  // park the servo at the mid point
+    {
+      if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
+      {
+        servoAngle--;
+        scannerServo.write(servoAngle);
+        lastScanStepTime = millis();
+      }
+    }
+    else
+    {
+      Serial.println("state = SCAN_IDLE");
+      state = SCAN_IDLE;
+    }
   }
   else
   {

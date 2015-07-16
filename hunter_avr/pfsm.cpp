@@ -27,7 +27,7 @@ const char* const ProtocolFSM::StateStr[STATE_MAX+1] = {
 ProtocolFSM::ProtocolFSM(Stream& serial, const char* ssid, const char* password, const char* server, uint16_t port)
     : ssid(ssid), password(password), server(server), port(port), delay_end(0),
     serial(serial), esp(&serial, 4), rest(&esp), state(POWER_ON),
-    wifi_connected(false), status_pending(false), command_valid(false), command_complete(false) {
+    wifi_connected(false), status_pending(false), scanResults_pending(false), command_valid(false), command_complete(false) {
       
   // hold the device in reset
   pinMode(RESET_PIN, OUTPUT);
@@ -198,6 +198,39 @@ void ProtocolFSM::update() {
     }
   }
 
+  if(state == IDLE && scanResults_pending) {
+    state = SENDING_SCAN_RESULTS;
+    scanResults_pending = false;
+    
+    StaticJsonBuffer<328> jsonBuffer;
+    char buffer[328];
+    
+    JsonObject& obj = jsonBuffer.createObject();
+    scanResults.toJson(obj);
+    obj.printTo(buffer, sizeof(buffer));
+    rest.setContentType("application/json");
+    rest.put("/scanResults", buffer);
+    
+    // prepare for response
+    rest.getResponse(NULL, 0, true);
+    delay_end = millis() + 1000;
+    state = SENDING_STATUS;
+  }
+
+  if(state == SENDING_SCAN_RESULTS) {
+    char buffer[128];
+    int resp;
+    if((resp = rest.getResponse(buffer, sizeof(buffer), false)) == HTTP_STATUS_OK) {
+      Serial.println(F("PFSM: Scan Results delivered"));
+      resetResetTime();
+      resetReadyCheck();
+      state = IDLE;
+    } else if(delayComplete()) {
+      Serial.println(F("PFSM: Scan results timed out"));
+      state = IDLE;
+    }
+  }
+
   if(state == FETCH_COMMAND) {
     rest.get(command_endpoint);
     
@@ -293,6 +326,13 @@ void ProtocolFSM::update() {
 void ProtocolFSM::sendStatus(const SensorStatus& _status) {
   if(!status_pending) {
     status = _status;
+    status_pending = true;
+  }
+}
+
+void ProtocolFSM::sendScanResults(const ScanResults& _scanResults) {
+  if(!status_pending) {
+    scanResults = _scanResults;
     status_pending = true;
   }
 }

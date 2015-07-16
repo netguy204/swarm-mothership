@@ -37,7 +37,36 @@ void SensorStatus::toJson(JsonObject& report) {
   report["vin"] = vin;
 }
 
+ScanResults::ScanResults()
+  : lat(0), lon(0), heading(0) {
+}
+
+void ScanResults::toJson(JsonObject& report) {
+  report["gtime"] = gps_time_ms;
+  report["mtime"] = message_time_ms;
+  
+  report["lat"] = lat;
+  report["long"] = lon;
+  report["hdg"] = heading;
+  report["pid"] = swarmID();
+  
+  report["gstate"] = gps_fix_state;
+  
+  // arrays of stuff (ranges & IR detections)
+  
+  JsonArray&  obstructionArray  = report.createNestedArray("obstruction");
+  for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++) {
+    obstructionArray.add(sonarScanResults[i]);
+  }
+  
+  JsonArray&  beaconArray  = report.createNestedArray("beacon");
+  for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++) {
+    beaconArray.add(irScanResults[i]);
+  }
+}
+
 bool DriveCommand::fromJson(JsonObject& cmd) {
+  // get the command type 
   if(!cmd.containsKey("type")) return false;
   
   const char* type = cmd["type"];
@@ -45,30 +74,37 @@ bool DriveCommand::fromJson(JsonObject& cmd) {
     command = SET_HEADING;
   } else if(strcmp(type, "DRIVE") == 0) {
     command = DRIVE;
-  } else {  
+  } else if(strcmp(type, "SCAN") == 0) {
+    command = SCAN;
+  } else { 
     Serial.print("unrecognized type ");
     Serial.println(type);
     return false;
   }
   
-  if(!cmd.containsKey("cid") || !cmd.containsKey("pid") || !cmd.containsKey("duration")) {
+  if(!cmd.containsKey("cid") || !cmd.containsKey("pid")) {
     return false;
   }
   
   cid = cmd["cid"];
   pid = cmd["pid"];
-  duration = cmd["duration"];
   
+  // get the command parameters
   if(command == DRIVE) {
-    if(!cmd.containsKey("speed") || !cmd.containsKey("heading")) return false;
+    if(!cmd.containsKey("speed") || !cmd.containsKey("heading") || !cmd.containsKey("duration")) return false;
     
+    payload.drive.duration = cmd["duration"];
     payload.drive.speed = cmd["speed"];
     payload.drive.heading = cmd["heading"];
     return true;
   } else if(command == SET_HEADING) {
-    if(!cmd.containsKey("heading")) return false;
+    if(!cmd.containsKey("heading") || !cmd.containsKey("duration")) return false;
     
+    payload.heading.duration = cmd["duration"];
     payload.heading.heading = cmd["heading"];
+    return true;
+  } else if(command == SCAN) {
+    // no parameters for scanning...?
     return true;
   } else {
     return false;
