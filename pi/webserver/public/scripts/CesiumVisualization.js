@@ -56,6 +56,9 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 	};
 
 	addObstructionLine = function (entityLocation, entityHeading, rangeReadout) {
+	if(entityLocation === undefined || entityHeading === undefined || rangeReadout === undefined){
+		return;
+	}
 	try{
 	var vertices = SpatialUtils.rangesToLines(entityLocation, entityHeading, rangeReadout);
 	var positions = Cesium.Cartesian3.fromDegreesArray(vertices);

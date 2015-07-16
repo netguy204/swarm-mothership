@@ -1,4 +1,4 @@
-requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlInput,Visualization,FakeHunter) {
+requirejs(["ControlInput","CesiumVisualization"], function(ControlInput,Visualization) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -17,7 +17,7 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlI
 			updatePositions(req.response);
 		};
 		req.withCredentials = true;
-		req.open("GET", "http://localhost:8080/status", true);
+		req.open("GET", "/status", true);
 		req.send();
 	},2000);
 	
@@ -26,8 +26,8 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlI
 		Visualization.resize();
 	}
 	
-	var fh = new FakeHunter();
-	fh.start();
+	//var fh = new FakeHunter();
+	//fh.start();
 	
 	var controlInput = new ControlInput();
 	controlInput.setEntityPID(105);

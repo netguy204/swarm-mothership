@@ -22,7 +22,7 @@ define("ControlInput",[],function(){
 				break;
 			//up
 			case 38:
-				speed = 100;
+				speed = 255;
 				arrowsDown.up = state;
 				break;
 			//right
@@ -32,7 +32,7 @@ define("ControlInput",[],function(){
 				break;
 			//down
 			case 40:
-				speed = -100;
+				speed = -255;
 				arrowsDown.down = state;
 				break;
 		}
