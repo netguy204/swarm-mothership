@@ -200,7 +200,6 @@ void ProtocolFSM::update() {
 
   if(state == IDLE && scanResults_pending) {
     state = SENDING_SCAN_RESULTS;
-    scanResults_pending = false;
     
     StaticJsonBuffer<328> jsonBuffer;
     char buffer[328];
@@ -224,10 +223,12 @@ void ProtocolFSM::update() {
       Serial.println(F("PFSM: Scan Results delivered"));
       resetResetTime();
       resetReadyCheck();
+      scanResults_pending = false; // don't send it again
       state = IDLE;
     } else if(delayComplete()) {
       Serial.println(F("PFSM: Scan results timed out"));
       state = IDLE;
+      // retry sending at next opportunity since scanResults_pending is still true
     }
   }
 
@@ -273,6 +274,9 @@ void ProtocolFSM::update() {
             command_valid = true;
             command_complete = false;
             state = IDLE;
+            // don't reset command_check delay so that we can quickly queue up
+            // the next command and possibly chain together an interesting
+            // series of commands
           } else {
             Serial.print(F("PFSM: Message invalid "));
             Serial.println(buffer);

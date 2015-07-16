@@ -60,7 +60,7 @@ MagFSM mfsm(0x1E); // I2C 7bit address of HMC5883
 
 ScanFSM scanfsm;
 
-Profiler<6> pf;
+Profiler<7> pf;
 
 void setup() {
   Serial.begin(115200);
@@ -267,9 +267,26 @@ void loop() {
     pfsm.command_complete = true;
   }
 
+  // scan results go out at a higher priority than general status results
+  // since they are explicitly user requested
+  if(pfsm.state == ProtocolFSM::IDLE && scanfsm.newScanResultsWaiting == true) {
+    scanResults.heading = mfsm.heading();
+    scanResults.gps_time_ms = gpsfsm.lastTime;
 
-  //mcal.update(mfsm, tfsm);
-
+    scanResults.message_time_ms = gpsfsm.gmillis();
+    scanResults.lat = gpsfsm.lat;
+    scanResults.lon = gpsfsm.lon;
+    scanResults.gps_fix_state = gpsfsm.status;
+    for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++)
+    {
+      scanResults.sonarScanResults[i] = scanfsm.sonarScanResults[i];
+      scanResults.irScanResults[i] = scanfsm.irScanResults[i];
+    }
+    
+    pfsm.sendScanResults(scanResults);
+    scanfsm.newScanResultsWaiting = false;
+  }
+  
   if(pfsm.state == ProtocolFSM::IDLE && (gpsfsm.updated_ll || mfsm.updated_data)) {
     gpsfsm.toENU(ss.enu_cm, gpsfsm.ecef_pos);
     ss.ecef_pos_cm = gpsfsm.ecef_pos;
@@ -286,23 +303,6 @@ void loop() {
     ss.vin = readVcc() / 1000.0;
 
     pfsm.sendStatus(ss);
-  }
-
-  if(pfsm.state == ProtocolFSM::IDLE && scanfsm.newScanResultsWaiting == true) {
-    scanResults.heading = mfsm.heading();
-    scanResults.gps_time_ms = gpsfsm.lastTime;
-
-    scanResults.message_time_ms = gpsfsm.gmillis();
-    scanResults.lat = gpsfsm.lat;
-    scanResults.lon = gpsfsm.lon;
-    scanResults.gps_fix_state = gpsfsm.status;
-    for(int i = 0; i < (SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN); i++)
-    {
-      scanResults.sonarScanResults[i] = scanfsm.sonarScanResults[i];
-      scanResults.irScanResults[i] = scanfsm.irScanResults[i];
-    }
-    
-    pfsm.sendScanResults(scanResults);
   }
 
   gpsfsm.ackLatLon();
