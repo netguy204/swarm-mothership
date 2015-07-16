@@ -1,5 +1,4 @@
-define("FakeHunter", ["proj4"], function (Proj4) {
-
+define("FakeHunter", [], function () {
 	var lat = -76.8976622;
 	var lon = 39.1672858;
 	var currentTaskID = 0;
@@ -33,7 +32,7 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 		var req = new XMLHttpRequest();
 		req.onload = function (evt) {};
 		req.withCredentials = true;
-		req.open("POST", "http://localhost:8080/commands", true);
+		req.open("POST", "/commands", true);
 		var command = {
 			pid : 1,
 			left : left,
@@ -56,7 +55,7 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 			setTimeout(getNextTask, 1000);
 		};
 		req.withCredentials = true;
-		req.open("GET", "http://localhost:8080/commands?pid=" + pid, true);
+		req.open("GET", "/commands?pid=" + pid, true);
 		req.send();
 	}
 
@@ -79,7 +78,7 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 		};
 		var req = new XMLHttpRequest();
 		req.withCredentials = true;
-		req.open("PUT", "http://localhost:8080/status", true);
+		req.open("PUT", "/status", true);
 		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 		req.send(JSON.stringify(status));
 	}
@@ -95,7 +94,7 @@ define("FakeHunter", ["proj4"], function (Proj4) {
 			"complete" : true
 		};
 		req.withCredentials = true;
-		req.open("PUT", "http://localhost:8080/commands", true);
+		req.open("PUT", "/commands", true);
 		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 		req.send(JSON.stringify(status));
 		postStatusUpdate();

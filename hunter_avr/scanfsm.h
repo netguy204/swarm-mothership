@@ -23,14 +23,14 @@
 #define SCANFSM_SONAR_PIN     26
 
 // we'll have to look for a 38kHz modulated IR signal
-#if !defined(__AVR_ATmega2560__)
-#  define SCANFSM_IR_PIN       2
-#  define IRpin_PIN            PIND
-#else
+//#if !defined(__AVR_ATmega2560__)
+//#  define SCANFSM_IR_PIN       2
+//#  define IRpin_PIN            PIND
+//#else
 // IR sensor (on Mega)
 #  define SCANFSM_IR_PIN       4
 #  define IRpin_PIN            PINE
-#endif
+//#endif
 
 #define RESOLUTION             20    // usec between samples
 #define MAXPULSE               1000  // how long we'll look for IR

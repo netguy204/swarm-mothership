@@ -30,6 +30,9 @@ void ScanFSM::begin()
   scannerServo.attach(SCANFSM_SERVO_PIN);  // attaches the servo on pin 9 to the servo object
   scannerServo.write(servoAngle);
   
+  // set up the LV-MaxSonar-EZ
+  lvMaxSonarSensor.setReadPin(SCANFSM_SONAR_PIN, LvMaxSonarSensor::PWM_MODE);
+  
   // enable the IR sensor
   Serial.println("Enabling the IR pin");
   pinMode(SCANFSM_IR_PIN, INPUT);
@@ -78,8 +81,6 @@ void ScanFSM::update()
   }
   else if(state == SCANNING)
   {
-    Serial.print("state = SCANNING, servoAngle = ");
-    Serial.println(servoAngle);
     if(servoAngle >= SCANFSM_SERVO_ANGLE_MAX)
     {
       state = SCAN_COMPLETE;
@@ -93,9 +94,18 @@ void ScanFSM::update()
     {
       if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
       {
+        Serial.print("state = SCANNING, servoAngle = ");
+        Serial.print(servoAngle);
         long cm = lvMaxSonarSensor.getDistanceCm();
+        Serial.print(":  ");
+        Serial.print(cm);
+        Serial.print("cm   ");
         sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
         boolean irFound = foundIrSignal();
+        if(irFound)
+          Serial.println("IR");
+        else
+          Serial.println("--");
         irScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = irFound;
         servoAngle++;
         scannerServo.write(servoAngle);
