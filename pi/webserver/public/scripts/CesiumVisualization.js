@@ -1,19 +1,20 @@
 define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesium, SpatialUtils) {
-	var viewer,layers;
-	
-	viewer = new Cesium.Viewer('cesiumContainer',{
-	imageryProvider: new Cesium.SingleTileImageryProvider({
-			url : '../images/testSite.png',
-			rectangle : Cesium.Rectangle.fromDegrees(-76.899314, 39.166930, -76.896176, 39.167840)
-		}),
-		baseLayerPicker : false
-	});
+	var viewer,
+	layers;
+
+	viewer = new Cesium.Viewer('cesiumContainer', {
+			imageryProvider : new Cesium.SingleTileImageryProvider({
+				url : '../images/testSite.png',
+				rectangle : Cesium.Rectangle.fromDegrees(-76.899314, 39.166930, -76.896176, 39.167840)
+			}),
+			baseLayerPicker : false
+		});
 
 	//layers = viewer.imageryLayers;
 	/*layers.addImageryProvider(new Cesium.SingleTileImageryProvider({
-			url : '../images/testSite.png',
-			rectangle : Cesium.Rectangle.fromDegrees(-76.899314, 39.166930, -76.896176, 39.167840)
-		}));*/
+	url : '../images/testSite.png',
+	rectangle : Cesium.Rectangle.fromDegrees(-76.899314, 39.166930, -76.896176, 39.167840)
+	}));*/
 
 	var hunterEntities = [];
 	var obstructions = [];
@@ -32,22 +33,44 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 		});
 
 	var addObstruction = function (entityLocation, entityHeading, rangeReadout) {
-		var vertices = SpatialUtils.rangesToLines(entityLocation, entityHeading, rangeReadout);
-
-		obstructions.add(viewer.entities.add({
-				wall : {
-					positions : Cesium.Cartesian3.fromDegreesArray(vertices),
-					maximumHeights : standardHeight,
-					minimumHeights : minHeight,
-					outline : true,
-					outlineColor : Cesium.Color.LIGHTGRAY,
-					outlineWidth : 4,
-					material : Cesium.Color.fromRandom({
-						alpha : 0.7
-					})
-				}
-			}));
+		try {
+			var vertices = SpatialUtils.rangesToLines(entityLocation, entityHeading, rangeReadout);
+			var positions = Cesium.Cartesian3.fromDegreesArray(vertices);
+			console.log("positions",positions);
+			obstructions.push(viewer.entities.add({
+					wall : {
+						positions : positions,
+						maximumHeights : standardHeight,
+						minimumHeights : minHeight,
+						outline : true,
+						outlineColor : Cesium.Color.LIGHTGRAY,
+						outlineWidth : 4,
+						material : Cesium.Color.fromRandom({
+							alpha : 0.7
+						})
+					}
+				}));
+		} catch (err) {
+			console.error(err);
+		}
 	};
+
+	addObstructionLine = function (entityLocation, entityHeading, rangeReadout) {
+	try{
+	var vertices = SpatialUtils.rangesToLines(entityLocation, entityHeading, rangeReadout);
+	var positions = Cesium.Cartesian3.fromDegreesArray(vertices);
+		obstructions.push(
+		viewer.entities.add({
+			name : 'Obstruction',
+			polyline : {
+				positions : positions,
+				width : 5,
+				material : Cesium.Color.RED
+			}
+		}));
+		}
+		catch(err){console.error(err);}
+	}
 
 	var addHunter = function (pid, location) {
 		console.log("adding hunter", location);
@@ -55,7 +78,10 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 				position : Cesium.Cartesian3.fromDegrees(location.latitude, location.longitude),
 				point : {
 					pixelSize : 10,
-					color : Cesium.Color.BLUE
+					color : Cesium.Color.BLUE,
+					properties : {
+						"status" : "test"
+					}
 				}
 			});
 	}
@@ -73,14 +99,20 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 	return {
 		resize : function () {},
 
-		updateHunter : function (pid, location, heading, obstructions) {
-			if (hunterEntities[pid] == null || hunterEntities[pid] == undefined) {
-				addHunter(pid, location);
-				addObstruction(location, heading, obstructions);
+		updateHunter : function (entity) {
+			var location = {
+				"latitude" : entity.lat,
+				"longitude" : entity["long"]
+			}
+
+			if (hunterEntities[entity.pid] == null || hunterEntities[entity.pid] == undefined) {
+				addHunter(entity.pid, location);
+				//addObstructionLine(location, entity.heading, entity.obstruction);
 				return;
 			}
-			hunterEntities[pid].position = Cesium.Cartesian3.fromDegrees(location.latitude, location.longitude);
-			addObstruction(location, heading, obstructions);
+			hunterEntities[entity.pid].position = Cesium.Cartesian3.fromDegrees(location.latitude, location.longitude);
+			hunterEntities[entity.pid].name = entity.pid + " - Battery: " + entity.Vbattery;
+			addObstructionLine(location, entity.heading, entity.obstruction);
 		},
 
 		addObstruction : function (location) {}
