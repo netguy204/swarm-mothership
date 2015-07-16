@@ -15,7 +15,7 @@
 
 #include <Arduino.h>
 #include <Servo.h>
-#include "LvMaxSonar.h"
+#include "LvMaxSonarSensor.h"
 
 
 // set the pin numbers
@@ -52,7 +52,7 @@ class ScanFSM {
     // when did we do the last scan sample?
     unsigned long lastScanStepTime;
     
-    LvMaxSonar lvMaxSonar;  //(SCANFSM_SONAR_PIN);
+    LvMaxSonarSensor lvMaxSonarSensor;  //(SCANFSM_SONAR_PIN);
     
     Servo scannerServo;  // create servo object to control a servo 
     int servoAngle = SCANFSM_SERVO_ANGLE_MIN;

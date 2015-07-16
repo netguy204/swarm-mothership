@@ -93,7 +93,7 @@ void ScanFSM::update()
     {
       if(millis() - lastScanStepTime >= SCAN_STEP_DURATION_MSEC)
       {
-        long cm = lvMaxSonar.getDistanceCm();
+        long cm = lvMaxSonarSensor.getDistanceCm();
         sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
         boolean irFound = foundIrSignal();
         irScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = irFound;

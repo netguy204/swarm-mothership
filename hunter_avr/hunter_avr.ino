@@ -12,6 +12,7 @@
 #include "pfsm.h"
 #include "gpsfsm.h"
 #include "mfsm.h"
+#include "CollisionAvoider.h"
 #include "scanfsm.h"
 #include "tfsm.h"
 #include "pid.h"
@@ -102,6 +103,7 @@ class FRED {
 
   uint8_t state;
   double hdgSetPoint, hdgInput, hdgOutput;
+  CollisionAvoider collisionAvoider;
   unsigned long delay_end;
   unsigned long command_timeout;
   uint8_t drive_speed;
