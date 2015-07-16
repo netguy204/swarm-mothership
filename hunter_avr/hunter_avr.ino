@@ -51,8 +51,8 @@ long readVcc() {
 
 Watchdog::CApplicationMonitor ApplicationMonitor;
 
-ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
-//ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.4", 8080);
+//ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
+ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.3", 8080);
 GPSFSM gpsfsm(Serial3, &Serial);
 
 TracksFSM tfsm;
@@ -226,7 +226,8 @@ class FRED {
     if(state == SCANNING) {
       if(scanfsm.newScanResultsWaiting == true)
       {
-        // send the data arrays to the mothership & exit SCANNING state
+        // XXX - send the data arrays to the mothership & exit SCANNING state
+        
         state = IDLE;
       }
     }
@@ -284,6 +285,7 @@ void loop() {
   // scan results go out at a higher priority than general status results
   // since they are explicitly user requested
   if(pfsm.state == ProtocolFSM::IDLE && scanfsm.newScanResultsWaiting == true) {
+    Serial.println("Uploading scan results to the server"); 
     scanResults.heading = mfsm.heading();
     scanResults.gps_time_ms = gpsfsm.lastTime;
 

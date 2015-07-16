@@ -181,7 +181,6 @@ void ProtocolFSM::update() {
     // prepare for response
     rest.getResponse(NULL, 0, true);
     delay_end = millis() + 1000;
-    state = SENDING_STATUS;
   }
 
   if(state == SENDING_STATUS) {
@@ -200,9 +199,11 @@ void ProtocolFSM::update() {
 
   if(state == IDLE && scanResults_pending) {
     state = SENDING_SCAN_RESULTS;
+    scanResults_pending = false;
     
-    StaticJsonBuffer<328> jsonBuffer;
-    char buffer[328];
+    // 328?
+    StaticJsonBuffer<1024> jsonBuffer;
+    char buffer[1024];
     
     JsonObject& obj = jsonBuffer.createObject();
     scanResults.toJson(obj);
@@ -213,20 +214,21 @@ void ProtocolFSM::update() {
     // prepare for response
     rest.getResponse(NULL, 0, true);
     delay_end = millis() + 1000;
-    state = SENDING_STATUS;
   }
 
   if(state == SENDING_SCAN_RESULTS) {
     char buffer[128];
     int resp;
     if((resp = rest.getResponse(buffer, sizeof(buffer), false)) == HTTP_STATUS_OK) {
-      Serial.println(F("PFSM: Scan Results delivered"));
+      Serial.println(F("PFSM: Scan Results delivered, resp = HTTP_STATUS_OK"));
       resetResetTime();
       resetReadyCheck();
       scanResults_pending = false; // don't send it again
       state = IDLE;
     } else if(delayComplete()) {
-      Serial.println(F("PFSM: Scan results timed out"));
+      Serial.println(F("PFSM: Scan results timed out, resp != HTTP_STATUS_OK..."));
+      Serial.print("resp = ");
+      Serial.println(resp);
       state = IDLE;
       // retry sending at next opportunity since scanResults_pending is still true
     }
@@ -335,8 +337,8 @@ void ProtocolFSM::sendStatus(const SensorStatus& _status) {
 }
 
 void ProtocolFSM::sendScanResults(const ScanResults& _scanResults) {
-  if(!status_pending) {
+  if(!scanResults_pending) {
     scanResults = _scanResults;
-    status_pending = true;
+    scanResults_pending = true;
   }
 }

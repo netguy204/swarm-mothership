@@ -34,8 +34,9 @@
 #define SCALE_USEC_PER_CM             58.77      
 #define CM_PER_INCH                    2.54
 
-// the maximum range is supposedly 6.45 meters, but we'll say 2...
-#define CM_MAX_RANGE_USEC_TIMEOUT (SCALE_USEC_PER_CM * 200)
+// the maximum range is supposedly 6.45 meters, but we'll say 5...
+#define MAXIMUM_RANGE_CM          500
+#define CM_MAX_RANGE_USEC_TIMEOUT (SCALE_USEC_PER_CM * MAXIMUM_RANGE_CM)
 
 // for collision avoidance
 #define DEFAULT_MINIMUM_RANGE_CM      18  // how close is too close for comfort?  Min range is ~15cm...
@@ -44,7 +45,7 @@
 
 class LvMaxSonarSensor
 {
-  private:
+  public:
     typedef enum
     {
       PWM_MODE,
@@ -52,6 +53,7 @@ class LvMaxSonarSensor
       UNDEFINED
     } SensorMode;
     
+  private:
     SensorMode sensorMode = UNDEFINED;
   
   protected:
