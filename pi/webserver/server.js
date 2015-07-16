@@ -22,6 +22,8 @@ var serveStatic = require("serve-static");
 var http = require('http');
 var bodyParser = require('body-parser');
 var querystring = require('querystring');
+var autodrive = require('./autodrive');
+var geolib = require('geolib');
 
 var app = connect();
 
@@ -37,6 +39,13 @@ function merge(o1, o2) {
     return o3;
 }
 
+function findPlatform(pid) {
+	for (var idx in platforms) {
+	    if (platforms[idx].integrated.pid == pid) return platforms[idx];
+	}
+	console.log("not found");
+};
+
 app.use(bodyParser.json());
 app.use(function(req, res, next) {
     req.query = querystring.parse(req._parsedUrl.query);
@@ -44,6 +53,40 @@ app.use(function(req, res, next) {
 });
 
 app.use(serveStatic(__dirname + "/public/"));
+
+/* Given a lat/long, which direction, and how far to go to a destination? */
+app.use("/navigate", function(req, res, next) {
+	res.setHeader('Content-Type', 'application/json');
+
+    	var from = req.query.from || undefined;
+	var to = req.query.to || undefined;
+    	var result = {};
+
+	var platform = findPlatform(from);
+	var target = findPlatform(to);
+
+console.log("");
+console.log(platform);
+	var start = autodrive.mover();
+	start.latitude(platform.integrated.lat);
+	start.longitude(platform.integrated.long);
+
+	var end = autodrive.target();
+	end.latitude(target.integrated.lat);
+	end.longitude(target.integrated.long);
+
+console.log("");
+console.log(target);
+
+console.log(start);
+console.log(end);
+
+	var bearing = geolib.getBearing(start.getLocation(), end.getLocation());
+	var dist = geolib.getDistance(start.getLocation(), end.getLocation());
+
+	res.end(JSON.stringify({bearing: bearing, distance: dist}));
+	next();
+});
 
 app.use("/status", function(req, res, next) {
 /*
@@ -95,8 +138,8 @@ app.use("/history", function(req, res, next) {
 });
 
 app.use("/killQueue",function(req,res,next){
-commands = [];
-next();
+	commands = [];
+	next();
 });
 
 
@@ -191,7 +234,7 @@ app.use("/update", function(req, res, next) {
 */
 
 app.use(function(req, res, next) {
-    res.end('Current pages are: status, commands');
+    res.end('Current pages are: status, commands, history, killQueue, navigate');
 });
 
 
