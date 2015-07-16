@@ -4,12 +4,13 @@ define("SpatialUtils", ["Geodesy/latlon-vincenty"], function (LatLon) {
 
 		return {
 			rangesToLines : function (location, heading, ranges) {
-				var p1 = new LatLon(location["lat"],location["long"]);
+				var p1 = new LatLon(location["latitude"],location["longitude"]);
 				var vertices = [];
 				for(var range in ranges){
 					var p2 = p1.destinationPoint(ranges[range]/100,heading);
-					vertices.push(p2.longitude);
-					vertices.push(p2.latitude);
+					vertices.push(p2.lon);
+					vertices.push(p2.lat);
+					//vertices.push(100);//arbitrary height meters for heights
 				}
 				return vertices;
 			},

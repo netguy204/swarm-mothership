@@ -6,7 +6,7 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlI
 	var updatePositions = function(updateResponse){
 		var platforms = JSON.parse(updateResponse);
 		for(var platform in platforms){
-			Visualization.updateHunter(platforms[platform].pid,{latitude:platforms[platform].lat,longitude:platforms[platform]["long"]});
+			Visualization.updateHunter(platforms[platform]);
 		}
 	};
 	
