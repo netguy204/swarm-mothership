@@ -1,4 +1,4 @@
-requirejs(["MothershipControl","CesiumVisualization","FakeHunter"], function(MothershipControl,Visualization,FakeHunter) {
+requirejs(["ControlInput","CesiumVisualization","FakeHunter"], function(ControlInput,Visualization,FakeHunter) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -6,7 +6,7 @@ requirejs(["MothershipControl","CesiumVisualization","FakeHunter"], function(Mot
 	var updatePositions = function(updateResponse){
 		var platforms = JSON.parse(updateResponse);
 		for(var platform in platforms){
-			Visualization.updateHunter(platforms[platform].pid,{latitude:platforms[platform].latitude,longitude:platforms[platform].longitude});
+			Visualization.updateHunter(platforms[platform].pid,{latitude:platforms[platform].lat,longitude:platforms[platform]["long"]});
 		}
 	};
 	
@@ -28,6 +28,10 @@ requirejs(["MothershipControl","CesiumVisualization","FakeHunter"], function(Mot
 	
 	var fh = new FakeHunter();
 	fh.start();
+	
+	var controlInput = new ControlInput();
+	controlInput.setEntityPID(105);
+
 	//Visualization.addHunter(1,{longitude:-76.896736,latitude:39.170863});
 	
 });

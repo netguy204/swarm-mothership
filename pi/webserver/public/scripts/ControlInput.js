@@ -1,6 +1,9 @@
-define("MothershipControl",[],function(){
+define("ControlInput",[],function(){
 	
 	var interval;
+	var heading = 0;
+	var speed = 0;
+	var entityPID = 0;
 	
 	var arrowsDown = {
 		up: false,
@@ -8,22 +11,43 @@ define("MothershipControl",[],function(){
 		left: false,
 		right: false
 	}
+	
 
 	var modifyCommand = function(keyEvt,state){
 		switch(keyEvt.keyCode){
+			//left
 			case 37:
+				decrementHeading();
 				arrowsDown.left = state;
 				break;
+			//up
 			case 38:
+				speed = 100;
 				arrowsDown.up = state;
 				break;
+			//right
 			case 39:
+				incrementHeading();
 				arrowsDown.right = state;
 				break;
+			//down
 			case 40:
+				speed = -100;
 				arrowsDown.down = state;
 				break;
 		}
+	};
+	
+	var incrementHeading = function(){
+		heading++;
+		if(heading>360){heading = heading % 360;}
+		console.log(heading);
+	};
+	
+	var decrementHeading = function(){
+		heading--;
+		if(heading<0){heading += 360;}
+		console.log(heading);
 	};
 	
 	var sendCommand = function(){
@@ -34,13 +58,13 @@ define("MothershipControl",[],function(){
 		req.open("POST", "http://localhost:8080/commands", true);
 		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 	    command = {
-			pid: 0,
-			left: arrowsDown.left,
-			right:arrowsDown.right,
-			up:arrowsDown.up,
-			down:arrowsDown.down,
+			pid: entityPID,
+			type: "DRIVE",
+			heading: heading,
+			speed: speed,
 			duration: 0.25
 		};
+		console.log(command);
 		req.send(JSON.stringify(command));
 		}
 	};
@@ -55,6 +79,10 @@ define("MothershipControl",[],function(){
 	interval = setInterval(sendCommand,250);
 
 	
-	return{
+	return function(){
+		return{
+			"setHeading": function(resetValue){heading = resetValue;},
+			"setEntityPID": function(pid){entityPID = pid;}
+		};
 	};
 });
