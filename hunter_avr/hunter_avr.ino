@@ -58,9 +58,10 @@ GPSFSM gpsfsm(Serial3, &Serial);
 TracksFSM tfsm;
 MagFSM mfsm(0x1E); // I2C 7bit address of HMC5883
 
+CollisionAvoider collisionAvoider;
 ScanFSM scanfsm;
 
-Profiler<7> pf;
+Profiler<8> pf;
 
 void setup() {
   Serial.begin(115200);
@@ -103,7 +104,6 @@ class FRED {
 
   uint8_t state;
   double hdgSetPoint, hdgInput, hdgOutput;
-  CollisionAvoider collisionAvoider;
   unsigned long delay_end;
   unsigned long command_timeout;
   uint8_t drive_speed;
@@ -126,10 +126,12 @@ class FRED {
 
   void update(MagFSM& mfsm, TracksFSM& tfsm) {
     if(state == STARTUP) {
+      collisionAvoider.setEnabled(false);
       state = IDLE;
     }
 
     if(state == START_SET_HEADING || state == START_DRIVE) {
+      collisionAvoider.setEnabled(true);
       // configure the controller to maintain heading
       hdgPid.SetOutputLimits(-255, 255);
       hdgPid.SetMode(PID::AUTOMATIC);
@@ -163,6 +165,7 @@ class FRED {
         Serial.println(F("finished SET_HEADING"));
         hdgPid.SetMode(PID::MANUAL);
         tfsm.write(0, 0);
+        collisionAvoider.setEnabled(false);
         state = COMMAND_COMPLETE;
       } else {
         int16_t output = hdgOutput;
@@ -172,6 +175,7 @@ class FRED {
       if(delayExpired()) {
         Serial.println(F("failed SET_HEADING"));
         tfsm.write(0, 0);
+        collisionAvoider.setEnabled(false);
         state = COMMAND_FAILED;
       }
     }
@@ -185,27 +189,36 @@ class FRED {
     if(state == RUNNING_DRIVE) {
       if(delayExpired()) {
         tfsm.write(0, 0);
+        collisionAvoider.setEnabled(false);
         state = COMMAND_COMPLETE;
       } else {
-        // drive speed = (t1 + t2) / 2
-        // turn rate = (t1 - t2)
-        // t1 = 1/2 * (2*speed + turn)
-        // t2 = 1/2 * (2*speed - turn)
-        double t1 = 0.5 * (2.0 * drive_speed + hdgOutput);
-        double t2 = 0.5 * (2.0 * drive_speed - hdgOutput);
+        if(collisionAvoider.condition != CollisionAvoider::NO_OBSTRUCTION) {
+          // TODO - We will make this much smarter, but for now,
+          // just stop the FRED and change the state to COMMAND_COMPLETE
+          tfsm.write(0, 0);
+          collisionAvoider.setEnabled(false);
+          state = COMMAND_COMPLETE;
+        } else {
+          // drive speed = (t1 + t2) / 2
+          // turn rate = (t1 - t2)
+          // t1 = 1/2 * (2*speed + turn)
+          // t2 = 1/2 * (2*speed - turn)
+          double t1 = 0.5 * (2.0 * drive_speed + hdgOutput);
+          double t2 = 0.5 * (2.0 * drive_speed - hdgOutput);
 
-        // clamp
-        if(abs(t1) > 255 || abs(t2) > 255) {
-          double mx = max(abs(t1), abs(t2));
-          t1 = (t1 / mx) * 255;
-          t2 = (t2 / mx) * 255;
+          // clamp
+          if(abs(t1) > 255 || abs(t2) > 255) {
+            double mx = max(abs(t1), abs(t2));
+            t1 = (t1 / mx) * 255;
+            t2 = (t2 / mx) * 255;
+          }
+          tfsm.write((int16_t)t1, (int16_t)t2);
         }
-
-        tfsm.write((int16_t)t1, (int16_t)t2);
       }
     }
     
     if(state == START_SCANNING) {
+      collisionAvoider.setEnabled(false);
       scanfsm.startScan();
       state = SCANNING;
     }
@@ -238,7 +251,8 @@ void loop() {
   gpsfsm.update(); pf.mark(2);
   mfsm.update(); pf.mark(3);
   tfsm.update(); pf.mark(4);
-  scanfsm.update(); pf.mark(5);
+  collisionAvoider.update(); pf.mark(5);
+  scanfsm.update(); pf.mark(6);
 
   fred.update(mfsm, tfsm);
 
@@ -317,7 +331,7 @@ void loop() {
 #endif
   }
 
-  pf.mark(6);
+  pf.mark(7);
 
   if(pf.nstarts == 10000) {
     pf.report();
