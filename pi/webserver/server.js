@@ -23,12 +23,12 @@ var http = require('http');
 var bodyParser = require('body-parser');
 var querystring = require('querystring');
 var autodrive = require('./autodrive');
-var geolib = require('geolib');
 
 var app = connect();
 
 var platforms = [];
 var commands = [];
+var mothership = autodrive.mover();
 
 var nextCommandId = 0;
 
@@ -59,28 +59,39 @@ app.use(function (req, res, next) {
 app.use(serveStatic(__dirname + "/public/"));
 
 /* Given a lat/long, which direction, and how far to go to a destination? */
+// navigate?from=0&to=1 -- Navigate from platform 0 to platform 1
+// navigate?from=0&to={"lat":39.2833,%20"long":-76.6157} -- navigate from platform 0 to a lat/long
 app.use("/navigate", function(req, res, next) {
 	res.setHeader('Content-Type', 'application/json');
 
-    	var from = req.query.from || undefined;
+	var from = req.query.from || undefined;
 	var to = req.query.to || undefined;
-    	var result = {};
 
-	var platform = findPlatform(from);
-	var target = findPlatform(to);
+	// Get mothership's position
+	var platformData = findPlatform(from);
+	mothership.updateStatus(platformData.integrated.lat, platformData.integrated.long, platformData.integrated.heading);
 
-	var start = autodrive.mover();
-	start.latitude(platform.integrated.lat);
-	start.longitude(platform.integrated.long);
+	// Get ID or object for target
+	var dest = autodrive.target();
+	if (to.indexOf("{") === 0) {
+		// In case it's an object, and not an ID
+		to = JSON.parse(to);
+		dest.latitude(to.lat);
+		dest.longitude(to.long);
+	}
+	else {
+		var target = findPlatform(to);
+		dest.latitude(target.integrated.lat);
+		dest.longitude(target.integrated.long);
+	}
 
-	var end = autodrive.target();
-	end.latitude(target.integrated.lat);
-	end.longitude(target.integrated.long);
+	var directions = mothership.getDriveInstructions(dest);
 
-	var bearing = geolib.getBearing(start.getLocation(), end.getLocation());
-	var dist = geolib.getDistance(start.getLocation(), end.getLocation());
+	// TODO
+	// If the mothership's queue is EMPTY, and directions.action == "drive"
+	// use directions.turn {left/right/straight} to determine what actions to add to the queue
 
-	res.end(JSON.stringify({bearing: bearing, distance: dist}));
+	res.end(JSON.stringify(directions));
 	next();
 });
 
@@ -241,40 +252,9 @@ app.use("/commands", function (req, res, next) {
 	return undefined;
 });
 
-/*
-app.use("/update", function(req, res, next) {
-res.setHeader('Content-Type', 'application/json');
-
-<<<<<<< HEAD
-app.use(function(req, res, next) {
-    res.end('Current pages are: status, commands, history, killQueue, navigate');
-});
-=======
-var thing = req.body;
-var result = updateMember(thing.id, thing);
->>>>>>> 535997c2387cf6b103e8a9035fc395ad22481842
-
-if (result != false) {
-res.end(JSON.stringify(result));
-}
-else {
-if (typeof thing.id != "undefined") {
-var item = member.Member();
-item.patch(req.body);
-members.push(item);
-res.end(item.toJson());
-}
-else {
-res.end(JSON.stringify({error: "no id"}));
-}
-}
-
-next();
-});
- */
 
 app.use(function (req, res, next) {
-	res.end('Current pages are: status, commands');
+	res.end('Current pages are: status, commands, history, killQueue, navigate');
 });
 
 console.log("started");
