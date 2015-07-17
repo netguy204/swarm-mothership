@@ -1,4 +1,4 @@
-requirejs(["ControlInput","CesiumVisualization"], function(ControlInput,Visualization) {
+requirejs(["ControlInput","CesiumVisualization","FakeHunter","StatusBox"], function(ControlInput,Visualization,FakeHunter,StatusBox) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -8,6 +8,7 @@ requirejs(["ControlInput","CesiumVisualization"], function(ControlInput,Visualiz
 		for(var platform in platforms){
 			Visualization.updateHunter(platforms[platform]);
 		}
+		StatusBox.updateStatus(platforms);
 	};
 	
 	var statusUpdateInterval = setInterval(function(){
@@ -26,12 +27,11 @@ requirejs(["ControlInput","CesiumVisualization"], function(ControlInput,Visualiz
 		Visualization.resize();
 	}
 	
-	//var fh = new FakeHunter();
-	//fh.start();
+	var fh = new FakeHunter();
+	fh.start();
 	
 	var controlInput = new ControlInput();
 	controlInput.setEntityPID(105);
-
-	//Visualization.addHunter(1,{longitude:-76.896736,latitude:39.170863});
+	
 	
 });
