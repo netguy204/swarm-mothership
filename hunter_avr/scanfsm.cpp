@@ -100,14 +100,15 @@ void ScanFSM::update()
         Serial.print(":  ");
         Serial.print(cm);
         Serial.print("cm   ");
-        sonarScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = cm;
+        sonarScanResults[(servoAngle - SCANFSM_SERVO_ANGLE_MIN) / SCANFSM_SERVO_SKIP_ANGLE] = cm;
         boolean irFound = foundIrSignal();
         if(irFound)
           Serial.println("IR");
         else
           Serial.println("--");
-        irScanResults[servoAngle - SCANFSM_SERVO_ANGLE_MIN] = irFound;
-        servoAngle++;
+        irScanResults[(servoAngle - SCANFSM_SERVO_ANGLE_MIN) / SCANFSM_SERVO_SKIP_ANGLE] = irFound;
+        // skip forward by N degrees
+        servoAngle += SCANFSM_SERVO_SKIP_ANGLE;
         scannerServo.write(servoAngle);
         lastScanStepTime = millis();
         //Serial.print("millis(): ");

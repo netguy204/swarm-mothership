@@ -38,7 +38,11 @@
 // set these values so we don't turn too far (90 degrees seems reasonable)
 #define SCANFSM_SERVO_ANGLE_MIN     45
 #define SCANFSM_SERVO_ANGLE_MAX     135
+// we'll do a scan every N degrees
+#define SCANFSM_SERVO_SKIP_ANGLE    5  
 #define SCANFSM_SERVO_ANGLE_MID (SCANFSM_SERVO_ANGLE_MIN + ((SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN) / 2))
+#define SCANFSM_NUMBER_OF_SCAN_SAMPLES ((SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN) / SCANFSM_SERVO_SKIP_ANGLE + 1)
+
 
 // how fast should we scan?
 #define SCAN_STEP_DURATION_MSEC     5
@@ -79,9 +83,9 @@ class ScanFSM {
     bool newScanResultsWaiting = false;
     
     // each bin will contain a distance in cm
-    int sonarScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
+    int sonarScanResults[SCANFSM_NUMBER_OF_SCAN_SAMPLES];
     // each bin will contain a bool indicating whether we saw the IR beacon or not
-    bool irScanResults[SCANFSM_SERVO_ANGLE_MAX - SCANFSM_SERVO_ANGLE_MIN];
+    bool irScanResults[SCANFSM_NUMBER_OF_SCAN_SAMPLES];
     
     void update();
 };
