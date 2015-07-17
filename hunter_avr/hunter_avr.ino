@@ -51,8 +51,8 @@ long readVcc() {
 
 Watchdog::CApplicationMonitor ApplicationMonitor;
 
-//ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
-ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.3", 8080);
+ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
+//ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.3", 8080);
 GPSFSM gpsfsm(Serial3, &Serial);
 
 TracksFSM tfsm;
