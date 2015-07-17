@@ -1,4 +1,4 @@
-requirejs(["ControlInput","CesiumVisualization","FakeHunter","StatusBox"], function(ControlInput,Visualization,FakeHunter,StatusBox) {
+requirejs(["MothershipControl","CesiumVisualization","FakeHunter","StatusBox"], function(MothershipControl,Visualization,FakeHunter,StatusBox) {
 	
 	var hunters = [];
 	var obstructions = [];
@@ -24,14 +24,13 @@ requirejs(["ControlInput","CesiumVisualization","FakeHunter","StatusBox"], funct
 	
 	
 	window.onresize = function(){
-		Visualization.resize();
 	}
 	
-	var fh = new FakeHunter();
-	fh.start();
+	//var fh = new FakeHunter();
+	//fh.start();
 	
-	var controlInput = new ControlInput();
-	controlInput.setEntityPID(105);
+	var controlInput = new MothershipControl();
+	controlInput.setEntityPID(0);
 	
 	
 });

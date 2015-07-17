@@ -53,8 +53,18 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 		catch(err){console.error(err);}
 	};
 	
-	var addIrPositives = function(entityLocation,entityHeading,beaconReadout){
-		
+	
+	var addBeaconLines = function(entityLocation,entityHeading,beaconReadout){
+		var positiveIRVertices = SpatialUtils.getBeaconLineVertices(entityLocation,entityHeading,beaconReadout);
+		for(var idx in positiveIRVertices){
+			irPositives.push(viewer.entities.add({
+				polyline:{
+					positions : Cesium.Cartesian3.fromDegreesArray(positiveIRVertices[idx]),
+					width: 5,
+					material:Cesium.Color.RED
+				}
+			}));
+		}
 	};
 
 	var addHunter = function (pid, location) {
@@ -89,8 +99,7 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 	});
 
 	return {
-		resize : function () {},
-
+	
 		updateHunter : function (entity) {
 			var location = {
 				"latitude" : entity.lat,
@@ -105,6 +114,7 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 			hunterEntities[entity.pid].position = Cesium.Cartesian3.fromDegrees(location.latitude, location.longitude);
 			hunterEntities[entity.pid].name = entity.pid + " - Battery: " + entity.Vbattery;
 			addObstructionLine(location, entity.heading, entity.obstruction);
+			addBeaconLines(location,entity.heading,entity.beacon);
 		}
 
 	};

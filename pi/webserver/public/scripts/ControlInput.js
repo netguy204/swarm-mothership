@@ -55,7 +55,7 @@ define("ControlInput",[],function(){
 		var req = new XMLHttpRequest();
 		req.onload = function(response){};
 		req.withCredentials = true;
-		req.open("POST", "http://localhost:8080/commands", true);
+		req.open("POST", "/commands", true);
 		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 	    command = {
 			pid: entityPID,
