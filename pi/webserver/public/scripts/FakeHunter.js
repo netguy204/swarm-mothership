@@ -72,7 +72,7 @@ define("FakeHunter", [], function () {
 			"Vin": 5.0,
 			"gstate": 3, // 3 = awesome, 2 = kinda ok, < 2 = dunno.
 			"gtime": 10020000,
-			"mtime": 10020010,
+			"mtime": Date.now(),
 			"beacon" : generateFakeBeaconData(),
 			"obstruction" : genarateFakeObstructionData()
 		};
