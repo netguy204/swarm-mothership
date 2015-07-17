@@ -28,6 +28,7 @@ requirejs(["MothershipControl","CesiumVisualization","FakeHunter","StatusBox"], 
 	
 	//var fh = new FakeHunter();
 	//fh.start();
+
 	
 	var controlInput = new MothershipControl();
 	controlInput.setEntityPID(0);
