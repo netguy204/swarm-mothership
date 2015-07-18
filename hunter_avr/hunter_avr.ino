@@ -132,6 +132,8 @@ class FRED {
 
     if(state == START_SET_HEADING || state == START_DRIVE) {
       collisionAvoider.setEnabled(true);
+      collisionAvoider.update(); // kick through 1 update to ensure a valid condition
+      
       // configure the controller to maintain heading
       hdgPid.SetOutputLimits(-255, 255);
       hdgPid.SetMode(PID::AUTOMATIC);
@@ -192,6 +194,7 @@ class FRED {
         collisionAvoider.setEnabled(false);
         state = COMMAND_COMPLETE;
       } else {
+        /* false positives on my hunter
         if(collisionAvoider.condition != CollisionAvoider::NO_OBSTRUCTION) {
           // TODO - We will make this much smarter, but for now,
           // just stop the FRED and change the state to COMMAND_COMPLETE
@@ -199,6 +202,7 @@ class FRED {
           collisionAvoider.setEnabled(false);
           state = COMMAND_COMPLETE;
         } else {
+        */
           // drive speed = (t1 + t2) / 2
           // turn rate = (t1 - t2)
           // t1 = 1/2 * (2*speed + turn)
@@ -213,7 +217,7 @@ class FRED {
             t2 = (t2 / mx) * 255;
           }
           tfsm.write((int16_t)t1, (int16_t)t2);
-        }
+        //}
       }
     }
     
@@ -247,6 +251,8 @@ void loop() {
 
   pf.start();
   ProtocolFSM::ProtocolState old_state = pfsm.state;
+  uint8_t cstate = collisionAvoider.state;
+  uint8_t ccond = collisionAvoider.condition;
   
   pfsm.update(); pf.mark(1);
   gpsfsm.update(); pf.mark(2);
@@ -339,6 +345,14 @@ void loop() {
     pf.report();
     pf.reset();
   }
+  
+  if(cstate != collisionAvoider.state || ccond != collisionAvoider.condition) {
+    Serial.print(F("collision state = "));
+    Serial.print(collisionAvoider.state);
+    Serial.print(F(", condition = "));
+    Serial.println(collisionAvoider.condition);
+  }
+  
 
   // if the fsm wants to sleep, do it now since we have nothing
   // left to do with our time
