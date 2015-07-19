@@ -23,6 +23,12 @@
 
 #define VBATTERY A5
 
+
+// comment out to test collision avoidance code
+#define DISABLE_COLLISION_AVOIDANCE
+
+
+
 long readVcc() {
   // Read 1.1V reference against AVcc
   // set the reference to Vcc and the measurement to the internal 1.1V reference
@@ -82,7 +88,7 @@ void setup() {
   scanfsm.begin();
 
   pinMode(VBATTERY, INPUT);
-  collisionAvoider.setEnabled(true);
+  //collisionAvoider.setEnabled(true);
 }
 
 // FRED --> Free-Roving Exploration Device ;-)
@@ -167,6 +173,7 @@ class FRED {
           hdgInput += 360;
         }
 
+#ifndef DISABLE_COLLISION_AVOIDANCE
         if(state == RUNNING_DRIVE && collisionDelayExpired()) { // should we take additional corrective action?
           switch(collisionAvoider.condition)
           {
@@ -206,6 +213,7 @@ class FRED {
           }  // JMA
           setCollisionDelay(500); // allows a maximum of 60 degrees of correction per second
         }
+#endif
 
         hdgPid.Compute();
       }
@@ -307,7 +315,7 @@ void loop() {
   collisionAvoider.update(); pf.mark(5);
   scanfsm.update(); pf.mark(6);
 
-  //fred.update(mfsm, tfsm);
+  fred.update(mfsm, tfsm);
  
 
   // if the executor has completed the command, ack
