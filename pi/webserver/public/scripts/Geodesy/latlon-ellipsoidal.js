@@ -16,9 +16,9 @@
 
 'use strict';
 
-define(function(require, exports, module) {
-if (typeof module!='undefined' && module.exports) var Vector3d = require('./vector3d.js'); // CommonJS (Node)
-if (typeof module!='undefined' && module.exports) var Dms = require('./dms.js'); // CommonJS (Node)
+define(["Geodesy/vector3d","Geodesy/dms"],function(Vector3d,Dms) {
+//if (typeof module!='undefined' && module.exports) var Vector3d = require('./vector3d.js'); // CommonJS (Node)
+//if (typeof module!='undefined' && module.exports) var Dms = require('./dms.js'); // CommonJS (Node)
 
 
 /**
@@ -265,9 +265,9 @@ if (Number.prototype.toDegrees === undefined) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-if (typeof module != 'undefined' && module.exports) module.exports = LatLon; // CommonJS (Node)
-if (typeof module != 'undefined' && module.exports) module.exports.Vector3d = Vector3d; // CommonJs (Node)
-if (typeof define == 'function' && define.amd) define([], function() { return LatLon; }); // AMD
-if (typeof define == 'function' && define.amd) define([], function() { return Vector3d; }); // AMD??
-
+//if (typeof module != 'undefined' && module.exports) module.exports = LatLon; // CommonJS (Node)
+//if (typeof module != 'undefined' && module.exports) module.exports.Vector3d = Vector3d; // CommonJs (Node)
+//if (typeof define == 'function' && define.amd) define([], function() { return LatLon; }); // AMD
+//if (typeof define == 'function' && define.amd) define([], function() { return Vector3d; }); // AMD??
+return LatLon;
 });

@@ -13,7 +13,7 @@
 
 'use strict';
 
-define(function(require, exports, module) {
+define(function() {
 /**
  * Creates a 3-d vector.
  *
@@ -234,6 +234,7 @@ Vector3d.prototype.toString = function(precision) {
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-if (typeof module != 'undefined' && module.exports) module.exports = Vector3d; // CommonJS (Node)
-if (typeof define == 'function' && define.amd) define([], function() { return Vector3d; }); // AMD
+//if (typeof module != 'undefined' && module.exports) module.exports = Vector3d; // CommonJS (Node)
+//if (typeof define == 'function' && define.amd) define([], function() { return Vector3d; }); // AMD
+return Vector3d;
 });

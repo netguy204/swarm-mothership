@@ -8,8 +8,8 @@
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
 
 'use strict';
-define(function(require, exports, module) {
-if (typeof module!='undefined' && module.exports) var LatLon = require('../Scripts/Geodesy/latlon-ellipsoidal.js'); // CommonJS (Node)
+define(["Geodesy/latlon-ellipsoidal"],function(LatLon) {
+//if (typeof module!='undefined' && module.exports) var LatLon = require('../Scripts/Geodesy/latlon-ellipsoidal.js'); // CommonJS (Node)
 
 
 /**
@@ -248,6 +248,7 @@ if (Number.prototype.toDegrees === undefined) {
 }
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-if (typeof module != 'undefined' && module.exports) module.exports = LatLon; // CommonJS (Node)
-if (typeof define == 'function' && define.amd) define([], function() { return LatLon; }); // AMD
+//if (typeof module != 'undefined' && module.exports) module.exports = LatLon; // CommonJS (Node)
+//if (typeof define == 'function' && define.amd) define([], function() { return LatLon; }); // AMD
+return LatLon;
 });

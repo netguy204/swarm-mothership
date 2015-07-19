@@ -10,7 +10,7 @@
 
 'use strict';
 
-define(function(require, exports, module) {
+define(function() {
 /**
  * Tools for converting between numeric degrees and degrees / minutes / seconds.
  *
@@ -253,6 +253,7 @@ if (String.prototype.trim === undefined) {
 
 
 /* - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -  */
-if (typeof module != 'undefined' && module.exports) module.exports = Dms; // CommonJS (Node)
-if (typeof define == 'function' && define.amd) define([], function() { return Dms; }); // AMD
+return Dms;
+//if (typeof module != 'undefined' && module.exports) module.exports = Dms; // CommonJS (Node)
+//if (typeof define == 'function' && define.amd) define([], function() { return Dms; }); // AMD
 });
