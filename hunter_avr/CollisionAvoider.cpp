@@ -15,6 +15,10 @@
 // Constructor
 CollisionAvoider::CollisionAvoider()
 {
+  leftSensor.setReadPin(A1, LvMaxSonarSensor::PWM_MODE);
+  rightSensor.setReadPin(A0, LvMaxSonarSensor::PWM_MODE);
+  leftSensor.enableReadPin();
+  
   state = IDLE;
   condition = NO_OBSTRUCTION;
 }
@@ -23,7 +27,7 @@ void CollisionAvoider::setEnabled(boolean enabled)
 {
   if(enabled)
   {
-    leftSensor.enableReadPin();
+    //leftSensor.enableReadPin();
     //rightSensor.enableReadPin();  // already tied to left sensor
     state = ACTIVE;
     condition = NO_OBSTRUCTION;  // until we see something...
@@ -31,7 +35,7 @@ void CollisionAvoider::setEnabled(boolean enabled)
   }
   else
   {
-    leftSensor.disableReadPin();
+    //leftSensor.disableReadPin();
     //rightSensor.disableReadPin();  // already tied to left sensor
     state = IDLE;
     condition = NO_OBSTRUCTION;  // we're probably not driving right now
@@ -58,6 +62,12 @@ void CollisionAvoider::update()
     {
       condition |= OBSTRUCTION_RIGHT;
     }
+    
+    Serial.print(leftCm);
+    Serial.print(", ");
+    Serial.print(rightCm);
+    Serial.print(", state = ");
+    Serial.println(condition);
   }
 }
 

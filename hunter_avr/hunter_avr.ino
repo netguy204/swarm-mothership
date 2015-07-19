@@ -21,7 +21,13 @@
 #include "swarm_config.h"
 #include "ApplicationMonitor.h"
 
-#define VBATTERY A0
+#define VBATTERY A5
+
+
+// comment out to test collision avoidance code
+#define DISABLE_COLLISION_AVOIDANCE
+
+
 
 long readVcc() {
   // Read 1.1V reference against AVcc
@@ -53,6 +59,8 @@ Watchdog::CApplicationMonitor ApplicationMonitor;
 
 ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.100", 8080);
 //ProtocolFSM pfsm(Serial1, "swarmiest", "swarmiest", "192.168.168.3", 8080);
+//ProtocolFSM pfsm(Serial1, "N3FQT2", "Routerpassword1", "192.168.5.121", 8080);
+
 GPSFSM gpsfsm(Serial3, &Serial);
 
 TracksFSM tfsm;
@@ -80,6 +88,7 @@ void setup() {
   scanfsm.begin();
 
   pinMode(VBATTERY, INPUT);
+  //collisionAvoider.setEnabled(true);
 }
 
 // FRED --> Free-Roving Exploration Device ;-)
@@ -106,6 +115,7 @@ class FRED {
   double hdgSetPoint, hdgInput, hdgOutput;
   double hdgLongTerm;  // we have a desired heading, but we might have to deviate temporarily
   unsigned long delay_end;
+  unsigned long react_collision;
   unsigned long command_timeout;
   uint8_t drive_speed;
 
@@ -116,7 +126,15 @@ class FRED {
   bool delayExpired() {
     return millis() >= delay_end;
   }
-
+  
+  void setCollisionDelay(long ms) {
+    react_collision = millis() + ms;
+  }
+  
+  bool collisionDelayExpired() {
+    return millis() >= react_collision;
+  }
+  
   // PID values (2, 5, 1) are probably good... may need to investigate I (integral) term
   FRED()
   : hdgPid(&hdgInput, &hdgOutput, &hdgSetPoint, 2, 5, 1, PID::DIRECT), delay_end(0), command_timeout(5000) {
@@ -155,42 +173,47 @@ class FRED {
           hdgInput += 360;
         }
 
-        switch(collisionAvoider.condition)
-        {
-          case NO_OBSTRUCTION:
-            // if FRED is not on the long term heading, try to get back to
-            // that (more slowly than the initial turns to avoid collisions)
-            if(hdgSetPoint != hdgLongTerm)
-            {
-              if(hdgSetPoint > hdgLongTerm)
+#ifndef DISABLE_COLLISION_AVOIDANCE
+        if(state == RUNNING_DRIVE && collisionDelayExpired()) { // should we take additional corrective action?
+          switch(collisionAvoider.condition)
+          {
+            case NO_OBSTRUCTION:
+              // if FRED is not on the long term heading, try to get back to
+              // that (more slowly than the initial turns to avoid collisions)
+              if(hdgSetPoint != hdgLongTerm)
               {
-                hdgSetPoint -= 15;
+                if(hdgSetPoint > hdgLongTerm)
+                {
+                  hdgSetPoint -= 15;
+                }
+                else
+                {
+                  hdgSetPoint += 15;
+                }
               }
-              else
-              {
-                hdgSetPoint += 15;
-              }
-            }
-            break;
-          case OBSTRUCTION_BOTH:
-            // We are blocked up ahead.  Since we can't see backwards,
-            // we just stop the FRED and change the state to COMMAND_COMPLETE
-            // we may need the mothership's help
-            tfsm.write(0, 0);
-            collisionAvoider.setEnabled(false);
-            state = COMMAND_COMPLETE;
-            break;
-          case OBSTRUCTION_LEFT:
-            // veer right
-            hdgSetPoint += 30;
-            break;
-          case OBSTRUCTION_RIGHT:
-            // veer left
-            hdgSetPoint -= 30;
-            break;
-          default: // should not get here
-            break;
-        }  // JMA
+              break;
+            case OBSTRUCTION_BOTH:
+              // We are blocked up ahead.  Since we can't see backwards,
+              // we just stop the FRED and change the state to COMMAND_COMPLETE
+              // we may need the mothership's help
+              tfsm.write(0, 0);
+              collisionAvoider.setEnabled(false);
+              state = COMMAND_COMPLETE;
+              break;
+            case OBSTRUCTION_LEFT:
+              // veer right
+              hdgSetPoint += 30;
+              break;
+            case OBSTRUCTION_RIGHT:
+              // veer left
+              hdgSetPoint -= 30;
+              break;
+            default: // should not get here
+              break;
+          }  // JMA
+          setCollisionDelay(500); // allows a maximum of 60 degrees of correction per second
+        }
+#endif
 
         hdgPid.Compute();
       }
@@ -293,6 +316,7 @@ void loop() {
   scanfsm.update(); pf.mark(6);
 
   fred.update(mfsm, tfsm);
+ 
 
   // if the executor has completed the command, ack
   if(fred.state == FRED::COMMAND_COMPLETE || fred.state == FRED::COMMAND_FAILED) {
