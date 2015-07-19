@@ -104,6 +104,7 @@ class FRED {
 
   uint8_t state;
   double hdgSetPoint, hdgInput, hdgOutput;
+  double hdgLongTerm;  // we have a desired heading, but we might have to deviate temporarily
   unsigned long delay_end;
   unsigned long command_timeout;
   uint8_t drive_speed;
@@ -122,6 +123,8 @@ class FRED {
 
     hdgInput = 0;
     hdgSetPoint = 0;
+    hdgLongTerm = 0;
+    
   }
 
   void update(MagFSM& mfsm, TracksFSM& tfsm) {
@@ -151,6 +154,43 @@ class FRED {
         } else if(error < -180) {
           hdgInput += 360;
         }
+
+        switch(collisionAvoider.condition)
+        {
+          case NO_OBSTRUCTION:
+            // if FRED is not on the long term heading, try to get back to
+            // that (more slowly than the initial turns to avoid collisions)
+            if(hdgSetPoint != hdgLongTerm)
+            {
+              if(hdgSetPoint > hdgLongTerm)
+              {
+                hdgSetPoint -= 15;
+              }
+              else
+              {
+                hdgSetPoint += 15;
+              }
+            }
+            break;
+          case OBSTRUCTION_BOTH:
+            // We are blocked up ahead.  Since we can't see backwards,
+            // we just stop the FRED and change the state to COMMAND_COMPLETE
+            // we may need the mothership's help
+            tfsm.write(0, 0);
+            collisionAvoider.setEnabled(false);
+            state = COMMAND_COMPLETE;
+            break;
+          case OBSTRUCTION_LEFT:
+            // veer right
+            hdgSetPoint += 30;
+            break;
+          case OBSTRUCTION_RIGHT:
+            // veer left
+            hdgSetPoint -= 30;
+            break;
+          default: // should not get here
+            break;
+        }  // JMA
 
         hdgPid.Compute();
       }
@@ -194,30 +234,21 @@ class FRED {
         collisionAvoider.setEnabled(false);
         state = COMMAND_COMPLETE;
       } else {
-        /* false positives on my hunter
-        if(collisionAvoider.condition != CollisionAvoider::NO_OBSTRUCTION) {
-          // TODO - We will make this much smarter, but for now,
-          // just stop the FRED and change the state to COMMAND_COMPLETE
-          tfsm.write(0, 0);
-          collisionAvoider.setEnabled(false);
-          state = COMMAND_COMPLETE;
-        } else {
-        */
-          // drive speed = (t1 + t2) / 2
-          // turn rate = (t1 - t2)
-          // t1 = 1/2 * (2*speed + turn)
-          // t2 = 1/2 * (2*speed - turn)
-          double t1 = 0.5 * (2.0 * drive_speed + hdgOutput);
-          double t2 = 0.5 * (2.0 * drive_speed - hdgOutput);
+        double t1, t2;
+        // drive speed = (t1 + t2) / 2
+        // turn rate = (t1 - t2)
+        // t1 = 1/2 * (2*speed + turn)
+        // t2 = 1/2 * (2*speed - turn)
+        t1 = 0.5 * (2.0 * drive_speed + hdgOutput);
+        t2 = 0.5 * (2.0 * drive_speed - hdgOutput);
 
-          // clamp
-          if(abs(t1) > 255 || abs(t2) > 255) {
-            double mx = max(abs(t1), abs(t2));
-            t1 = (t1 / mx) * 255;
-            t2 = (t2 / mx) * 255;
-          }
-          tfsm.write((int16_t)t1, (int16_t)t2);
-        //}
+        // clamp
+        if(abs(t1) > 255 || abs(t2) > 255) {
+          double mx = max(abs(t1), abs(t2));
+          t1 = (t1 / mx) * 255;
+          t2 = (t2 / mx) * 255;
+        }
+        tfsm.write((int16_t)t1, (int16_t)t2);
       }
     }
     
@@ -277,6 +308,7 @@ void loop() {
       fred.state = FRED::START_SET_HEADING;
     } else if(pfsm.command.command == DriveCommand::DRIVE) {
       fred.hdgSetPoint = pfsm.command.payload.drive.heading;
+      fred.hdgLongTerm = fred.hdgSetPoint;  // we should always return to the long-term heading
       fred.drive_speed = pfsm.command.payload.drive.speed;
       fred.command_timeout = pfsm.command.payload.drive.duration;
       fred.state = FRED::START_DRIVE;

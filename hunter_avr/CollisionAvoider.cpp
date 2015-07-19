@@ -15,10 +15,8 @@
 // Constructor
 CollisionAvoider::CollisionAvoider()
 {
-  leftSensor.setMinimumRange(DEFAULT_MINIMUM_RANGE_CM);
-  rightSensor.setMinimumRange(DEFAULT_MINIMUM_RANGE_CM);
   state = IDLE;
-  condition = UNKNOWN;
+  condition = NO_OBSTRUCTION;
 }
 
 void CollisionAvoider::setEnabled(boolean enabled)
@@ -26,15 +24,17 @@ void CollisionAvoider::setEnabled(boolean enabled)
   if(enabled)
   {
     leftSensor.enableReadPin();
-    rightSensor.enableReadPin();
+    //rightSensor.enableReadPin();  // already tied to left sensor
     state = ACTIVE;
+    condition = NO_OBSTRUCTION;  // until we see something...
+
   }
   else
   {
     leftSensor.disableReadPin();
-    rightSensor.disableReadPin();
+    //rightSensor.disableReadPin();  // already tied to left sensor
     state = IDLE;
-    condition = UNKNOWN;
+    condition = NO_OBSTRUCTION;  // we're probably not driving right now
   }
 }
 
@@ -43,24 +43,20 @@ void CollisionAvoider::update()
   // if we're active, then let's see if anything is in our way
   if(state == ACTIVE)
   {
+    condition = NO_OBSTRUCTION;  // ever the optimist!
+    
     leftCm = leftSensor.getDistanceCm();
     rightCm = rightSensor.getDistanceCm();
     
-    if(leftSensor.isTooClose() && rightSensor.isTooClose())
+    // let's see what condition my condition is in...
+    if(leftCm <= WARNING_DISTANCE_CM)
     {
-      condition = OBSTRUCTION_BOTH;
+      condition |= OBSTRUCTION_LEFT;
     }
-    else if(leftSensor.isTooClose())
+    
+    if(rightCm <= WARNING_DISTANCE_CM)
     {
-      condition = OBSTRUCTION_LEFT;
-    }
-    else if(rightSensor.isTooClose())
-    {
-      condition = OBSTRUCTION_RIGHT;
-    }
-    else  // all clear!
-    {
-      condition = NO_OBSTRUCTION;
+      condition |= OBSTRUCTION_RIGHT;
     }
   }
 }

@@ -15,30 +15,30 @@
 
 #include "LvMaxSonarSensor.h"
 
+// use flags for obstruction detection
+#define OBSTRUCTION_LEFT        0x01
+#define OBSTRUCTION_RIGHT       0x02
+#define OBSTRUCTION_BOTH        (OBSTRUCTION_LEFT | OBSTRUCTION_RIGHT)
+
+#define NO_OBSTRUCTION          0
+
+#define WARNING_DISTANCE_CM     (MINIMUM_LVMAX_RANGE_CM + 10)   // several cm beyond sensor's minimum range
+
 
 class CollisionAvoider
 {
   private:
-    LvMaxSonarCollisionAvoidanceSensor leftSensor;
-    LvMaxSonarCollisionAvoidanceSensor rightSensor;
-      
+    LvMaxSonarSensor leftSensor;
+    LvMaxSonarSensor rightSensor;
+    
   public:
     enum
     {
       IDLE,
       ACTIVE
     };
-    
+
     uint8_t state;
-    
-    enum
-    {
-      UNKNOWN,
-      NO_OBSTRUCTION,
-      OBSTRUCTION_LEFT,
-      OBSTRUCTION_RIGHT,
-      OBSTRUCTION_BOTH
-    };
     
     uint8_t condition;
 

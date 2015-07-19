@@ -29,12 +29,12 @@ void LvMaxSonarSensor::setReadPin(int readPinIn, SensorMode sensorModeIn)
 
 void LvMaxSonarSensor::enableReadPin()
 {
-  // TODO - implement this if we go to synchronized analog
+  digitalWrite(COLLISION_AVOID_SENSOR_ENABLE_PIN, HIGH);
 }
 
 void LvMaxSonarSensor::disableReadPin()
 {
-  // TODO - implement this if we go to synchronized analog
+  digitalWrite(COLLISION_AVOID_SENSOR_ENABLE_PIN, LOW);
 }
 
 long LvMaxSonarSensor::getDistanceCm()
@@ -48,10 +48,17 @@ long LvMaxSonarSensor::getDistanceCm()
 
     // Read the pulse from the LV-MaxSonar-EZ.
     pulseDuration = pulseIn(readPin, HIGH, CM_MAX_RANGE_USEC_TIMEOUT);
-
-    // ~147 usec/inch, times 2.54 to get cm
-    //long cm = (pulseDuration/SCALE_USEC_PER_INCH) * CM_PER_INCH;
-    cm = (pulseDuration/SCALE_USEC_PER_CM);
+    
+    if(pulseDuration == 0)
+    {
+      cm = MAXIMUM_LVMAX_RANGE_CM;
+    }
+    else
+    {
+      // ~147 usec/inch, times 2.54 to get cm
+      //long cm = (pulseDuration/SCALE_USEC_PER_INCH) * CM_PER_INCH;
+      cm = (pulseDuration/SCALE_USEC_PER_CM);
+    }
   }
   else  // ANALOG_MODE
   {
@@ -88,34 +95,4 @@ long LvMaxSonarSensor::getLastMeasurementCm()
 {
   return lastMeasurementCm;
 }
-
-
-// LvMaxSonarCollisionAvoidance constructor
-LvMaxSonarCollisionAvoidanceSensor::LvMaxSonarCollisionAvoidanceSensor()
-{
-  // nothing more to do here, move along...
-}
-
-void LvMaxSonarCollisionAvoidanceSensor::setMinimumRange(int minRangeCmIn)
-{
-  minRangeCm = minRangeCmIn;
-}
-
-long LvMaxSonarCollisionAvoidanceSensor::getDistanceCm()
-{
-  long cm = LvMaxSonarSensor::getDistanceCm();
-
-  if(cm <= minRangeCm)
-    tooClose = true;
-  else
-    tooClose = false;
-    
-  return cm;
-}
-
-bool LvMaxSonarCollisionAvoidanceSensor::isTooClose()
-{
-  return tooClose;
-}
-
 
