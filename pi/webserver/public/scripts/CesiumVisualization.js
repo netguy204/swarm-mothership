@@ -47,7 +47,7 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 			polyline : {
 				positions : positions,
 				width : 2,
-				material : Cesium.Color.BLACK
+				material : Cesium.Color.GRAY
 			}
 		}));
 	}
@@ -70,16 +70,19 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 	};
 
 	var addHunter = function (pid, location) {
-		console.log("adding hunter", location);
+		
 		if(pid === 0){
+			console.log("drawing mothership", location);
 			hunterEntities[pid] = viewer.entities.add({
 				position : Cesium.Cartesian3.fromDegrees(location.longitude, location.latitude),
 				point : {
 					pixelSize : 14,
-					color : Cesium.Color.GREEN,
+					color : Cesium.Color.BLACK,
 				}
 			});
+			return;
 		}
+		console.log("drawing hunter", location);
 		hunterEntities[pid] = viewer.entities.add({
 				position : Cesium.Cartesian3.fromDegrees(location.longitude,location.latitude ),
 				point : {
@@ -114,7 +117,10 @@ define("CesiumVisualization", ["Cesium/Cesium", "SpatialUtils"], function (Cesiu
 				return;
 			}
 			hunterEntities[entity.pid].position = Cesium.Cartesian3.fromDegrees(location.longitude, location.latitude);
-			hunterEntities[entity.pid].name = entity.pid + " - Battery: " + entity.Vbattery;
+			hunterEntities[entity.pid].name = entity.pid;
+			if(entity.Vbattery !== undefined){
+				hunterEntities[entity.pid].name += " - Battery : " + entity.Vbattery;
+			}
 			addObstructionLine(location, entity.heading, entity.obstruction);
 			addBeaconLines(location,entity.heading,entity.beacon);
 		}

@@ -1,21 +1,34 @@
-define("FakeHunter", [], function () {
-	var lon = -76.8976622;
-	var lat = 39.1672858;
-	var currentTaskID = 0;
-	var vBattery = 3.4;
-
-	var pid = 1;
+define([], function () {
 	
-	var genarateFakeObstructionData = function(){
-		var readings = [];
+function FakeHunter(entityPid,location){
+	this.lon = -76.8976622;
+	this.lat = 39.1672858;	
+	this.pid = 1;
+	this.currentTaskID = 0;
+	this.vBattery = 3.4;
+
+	if(entityPid !== undefined){
+		this.pid = entityPid;
+	}
+	if(location !== undefined){
+			lat = location.latitude;
+			lon = location.longitude;
+		}
+	var that = this;
+	setInterval(function(){that.postFakeCommandFromMothership()}, 2000);
+	this.getNextTask();
+	}
+	
+FakeHunter.prototype.genarateFakeObstructionData = function(){
+	var readings = [];
 		for(var i=0;i<90;i++){
 			readings.push(Math.random() * 3000);
 		}
 		return readings;
-	}
-	
-	var generateFakeBeaconData = function(){
-		var readings = [];
+}
+
+FakeHunter.prototype.generateFakeBeaconData = function(){
+	var readings = [];
 		for(var i = 0;i<90;i++){
 			if(Math.round(Math.random() * 100) === 50){
 				readings.push(true);
@@ -23,10 +36,9 @@ define("FakeHunter", [], function () {
 			else{readings.push(false);}
 		}
 		return readings;
-	}
+}
 	
-	
-	var postFakeCommandFromMothership = function () {
+	FakeHunter.prototype.postFakeCommandFromMothership = function () {
 		var left = Math.ceil(Math.random() * 3);
 		var right = Math.ceil(Math.random() * 3);
 		var req = new XMLHttpRequest();
@@ -34,7 +46,7 @@ define("FakeHunter", [], function () {
 		req.withCredentials = true;
 		req.open("POST", "/commands", true);
 		var command = {
-			pid : pid,
+			pid : this.pid,
 			left : left,
 			right : right,
 			duration : 0.25
@@ -43,38 +55,38 @@ define("FakeHunter", [], function () {
 		req.send(JSON.stringify(command));
 	}
 
-	var getNextTask = function () {
+	FakeHunter.prototype.getNextTask = function () {
+		console.log("get next task ", this.pid)
 		var req = new XMLHttpRequest();
+		var that = this;
 		req.onload = function (evt) {
 			var task = JSON.parse(req.response);
 			if (task.length > 0 && task[0].cid != undefined) {
 				currentTaskID = task[0].cid;
-				simulateTaskCompletion();
+				that.simulateTaskCompletion();
 				return;
 			}
-			setTimeout(getNextTask, 1000);
+		
+			setTimeout(function(){that.getNextTask();}, 1000);
 		};
 		req.withCredentials = true;
-		req.open("GET", "/commands?pid=" + pid, true);
+		req.open("GET", "/commands?pid=" + this.pid, true);
 		req.send();
 	}
 
-	var postStatusUpdate = function () {
-	
-		
-	
+	FakeHunter.prototype.postStatusUpdate = function () {
 		var status = {
-			"pid" : pid,
-			"lat" : lat + (Math.random() * 0.00001),
-			"long" : lon +(Math.random() * 0.00001),
-			"Vbattery" : vBattery,
+			"pid" : this.pid,
+			"lat" : this.lat + (Math.random() * 0.00004),
+			"long" : this.lon +(Math.random() * 0.00004),
+			"Vbattery" : this.vBattery,
 			"heading": Math.random() * 360,
 			"Vin": 5.0,
 			"gstate": 3, // 3 = awesome, 2 = kinda ok, < 2 = dunno.
 			"gtime": 10020000,
 			"mtime": Date.now(),
-			"beacon" : generateFakeBeaconData(),
-			"obstruction" : genarateFakeObstructionData()
+			"beacon" : this.generateFakeBeaconData(),
+			"obstruction" : this.genarateFakeObstructionData()
 		};
 		var req = new XMLHttpRequest();
 		req.withCredentials = true;
@@ -83,43 +95,29 @@ define("FakeHunter", [], function () {
 		req.send(JSON.stringify(status));
 	}
 
-	var putTaskCompleted = function () {
+	FakeHunter.prototype.putTaskCompleted = function () {
 		var req = new XMLHttpRequest();
+		var that = this;
 		req.onload = function (evt) {
-			getNextTask();
+			that.getNextTask();
 		};
 		var status = {
-			"cid" : currentTaskID,
-			"pid" : pid,
+			"cid" : this.currentTaskID,
+			"pid" : this.pid,
 			"complete" : true
 		};
 		req.withCredentials = true;
 		req.open("PUT", "/commands", true);
 		req.setRequestHeader("Content-Type", "application/json;charset=UTF-8");
 		req.send(JSON.stringify(status));
-		postStatusUpdate();
+		this.postStatusUpdate();
 	}
 
-	var simulateTaskCompletion = function () {
-		setTimeout(putTaskCompleted, 1000);
+	FakeHunter.prototype.simulateTaskCompletion = function () {
+		var that = this;
+		setTimeout(function(){that.putTaskCompleted();}, 1000);
 	}
+	
+	return FakeHunter;
 
-	return function (entityPid,location) {
-		if(entityPid !== undefined){
-					pid = entityPid;
-					}
-					if(location !== undefined){
-					lat = location.latitude;
-					lon = location.longitude;
-					}
-		
-			return {				
-					start : function () {
-					setInterval(postFakeCommandFromMothership, 2000);
-					getNextTask();
-				},
-				getProperties: function(){
-					console.log(pid,lat,lon);
-				}
-				};
-		}});
+	});

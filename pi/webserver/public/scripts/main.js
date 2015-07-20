@@ -1,4 +1,5 @@
-requirejs(["MothershipControl","CesiumVisualization","FakeHunter","StatusBox"], function(MothershipControl,Visualization,FakeHunter,StatusBox) {
+requirejs(["MothershipControl","CesiumVisualization","FakeHunter","StatusBox","FakeMothership"],
+ function(MothershipControl,Visualization,FakeHunter,StatusBox,FakeMothership) {
 	
 	var hunters = {};
 	var obstructions = [];
@@ -35,14 +36,15 @@ requirejs(["MothershipControl","CesiumVisualization","FakeHunter","StatusBox"], 
 	window.onresize = function(){
 	}
 	
+	/*
+	//******For demonstration only*******
+	var fm = new FakeMothership();
+	fm.start();
+	
 	var simulatedHunters = [];
 	for(var i=0;i<4;i++){
 	simulatedHunters.push(new FakeHunter(i + 100,{latitude:39.1672858 + (Math.random() * 0.00004) ,longitude: -76.8976622 + (Math.random() * 0.000004)}));
-	simulatedHunters[i].start();
-	simulatedHunters[i].getProperties();
-	}
-
-	
+	}*/
 	var controlInput = new MothershipControl();
 	controlInput.setEntityPID(0);
 	

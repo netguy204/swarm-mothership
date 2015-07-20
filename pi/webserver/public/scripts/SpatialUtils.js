@@ -29,7 +29,6 @@ define("SpatialUtils", ["Geodesy/latlon-vincenty"], function (LatLon) {
 			if(line.length > 4){
 				vertices.push(line);
 			}
-			console.log("ranges to lines", vertices);
 			return vertices;
 
 		},
