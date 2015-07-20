@@ -2,9 +2,9 @@ define("SpatialUtils", ["Geodesy/latlon-vincenty"], function (LatLon) {
 
 	//Ranges are reported in centimetres
 
-	var getReadoutIndexHeading = function (heading, index) {
+	var getReadoutIndexHeading = function (heading, index,length) {
 		//starts at right which is heading + 45 degrees
-		return heading + (-45 + index);
+		return heading + (45 - ((index + 1) * (Math.round(90/length))));
 	}
 
 	return {
@@ -21,7 +21,7 @@ define("SpatialUtils", ["Geodesy/latlon-vincenty"], function (LatLon) {
 					}
 				}
 				else{
-				var p2 = p1.destinationPoint(ranges[i] / 100, getReadoutIndexHeading(heading, i));
+				var p2 = p1.destinationPoint(ranges[i] / 100, getReadoutIndexHeading(heading, i,ranges.length));
 				line.push(p2.lon);
 				line.push(p2.lat);
 				}
@@ -44,7 +44,7 @@ define("SpatialUtils", ["Geodesy/latlon-vincenty"], function (LatLon) {
 					line.push(entityLocation["latitude"]);
 					
 					//Whatever the max effective range of the IR sensor is, it should be where the 0.5 is.
-					var p2 = p1.destinationPoint(0.5, entityHeading + (-45 + i));
+					var p2 = p1.destinationPoint(0.5, getReadoutIndexHeading(entityHeading,i,beaconReadout.length));
 					line.push(p2.lon);
 					line.push(p2.lat);
 					
