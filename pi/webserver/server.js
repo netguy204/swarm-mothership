@@ -109,7 +109,7 @@ app.use("/status", function (req, res, next) {
 		next();
 	} else if (req.method == "PUT") {
 		var update = req.body;
-		console.log(update);
+		console.log(JSON.stringify(update));
 		var found = false;
 		for (var idx in platforms) {
 			if (platforms[idx].integrated.pid == update.pid) {
@@ -238,7 +238,7 @@ app.use("/commands", function (req, res, next) {
 							success : true
 						}));
 					console.log("PUT SUCCESS");
-					console.log(command);
+					console.log(JSON.stringify(command));
 					return next();
 				}
 			}
